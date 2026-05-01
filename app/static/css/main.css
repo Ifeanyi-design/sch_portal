@@ -1,0 +1,587 @@
+/* ================================================================
+   main.css — SAMS Global Stylesheet
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   1. CSS Custom Properties (Design Tokens)
+   ---------------------------------------------------------------- */
+:root {
+  /* Brand colors */
+  --color-primary:       hsl(225, 70%, 50%);
+  --color-primary-dark:  hsl(225, 70%, 40%);
+  --color-primary-light: hsl(225, 70%, 60%);
+  --color-primary-soft:  hsl(225, 70%, 97%);
+
+  --color-accent:        hsl(160, 64%, 44%);
+  --color-danger:        hsl(0,   72%, 51%);
+  --color-warning:       hsl(38,  92%, 50%);
+  --color-success:       hsl(142, 71%, 45%);
+  --color-info:          hsl(200, 80%, 50%);
+
+  /* Neutrals */
+  --color-white:         #ffffff;
+  --color-gray-50:       hsl(220, 20%, 98%);
+  --color-gray-100:      hsl(220, 15%, 94%);
+  --color-gray-200:      hsl(220, 13%, 88%);
+  --color-gray-300:      hsl(220, 10%, 76%);
+  --color-gray-400:      hsl(220,  9%, 60%);
+  --color-gray-500:      hsl(220,  8%, 46%);
+  --color-gray-600:      hsl(220,  9%, 35%);
+  --color-gray-700:      hsl(220, 10%, 24%);
+  --color-gray-800:      hsl(220, 13%, 16%);
+  --color-gray-900:      hsl(220, 15%, 10%);
+
+  /* Typography */
+  --font-sans:     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-xs:  0.75rem;
+  --font-size-sm:  0.875rem;
+  --font-size-md:  1rem;
+  --font-size-lg:  1.125rem;
+  --font-size-xl:  1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+
+  /* Spacing */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Borders & radius */
+  --radius-sm:   0.375rem;
+  --radius-md:   0.625rem;
+  --radius-lg:   1rem;
+  --radius-xl:   1.5rem;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md:  0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg:  0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl:  0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* Transitions */
+  --transition-fast:   150ms ease;
+  --transition-base:   250ms ease;
+  --transition-slow:   400ms ease;
+}
+
+/* ----------------------------------------------------------------
+   2. Reset & Base
+   ---------------------------------------------------------------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+  color: var(--color-gray-800);
+  background-color: var(--color-gray-50);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img, svg { display: block; max-width: 100%; }
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover { color: var(--color-primary-dark); }
+
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+
+/* ----------------------------------------------------------------
+   3. Auth Page Layout
+   ---------------------------------------------------------------- */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+}
+
+.auth-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ---- Brand panel (left) ---- */
+.auth-brand {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    hsl(225, 70%, 44%) 0%,
+    hsl(250, 65%, 38%) 50%,
+    hsl(270, 60%, 32%) 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-10);
+}
+
+.auth-brand__inner {
+  position: relative;
+  z-index: 1;
+  color: var(--color-white);
+  max-width: 380px;
+}
+
+.auth-brand__logo {
+  margin-bottom: var(--space-5);
+}
+
+.auth-brand__name {
+  font-size: var(--font-size-4xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: var(--space-2);
+}
+
+.auth-brand__tagline {
+  font-size: var(--font-size-md);
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: var(--space-10);
+  font-weight: 300;
+}
+
+.auth-brand__features {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.auth-brand__features li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.feature-icon {
+  font-size: var(--font-size-lg);
+  flex-shrink: 0;
+}
+
+/* Decorative blobs */
+.auth-brand__blob {
+  position: absolute;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+}
+.auth-brand__blob--1 {
+  width: 400px;
+  height: 400px;
+  top: -120px;
+  right: -120px;
+}
+.auth-brand__blob--2 {
+  width: 280px;
+  height: 280px;
+  bottom: -80px;
+  left: -80px;
+}
+
+/* ---- Card panel (right) ---- */
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-12) var(--space-10);
+  background: var(--color-white);
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.auth-card__header {
+  margin-bottom: var(--space-8);
+}
+
+.auth-card__title {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  color: var(--color-gray-900);
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-2);
+}
+
+.auth-card__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+}
+
+.auth-card__footer {
+  margin-top: var(--space-6);
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-400);
+  text-align: center;
+}
+
+/* ----------------------------------------------------------------
+   4. Form Components
+   ---------------------------------------------------------------- */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-group--inline {
+  flex-direction: row;
+  align-items: center;
+}
+
+.form-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-gray-700);
+}
+
+/* Input wrapper with icon support */
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: var(--space-4);
+  color: var(--color-gray-400);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  color: var(--color-gray-800);
+  background: var(--color-gray-50);
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.form-input--icon {
+  padding-left: calc(var(--space-4) * 2 + 16px);
+  padding-right: calc(var(--space-4) * 2 + 16px); /* space for toggle */
+}
+
+.form-input:focus {
+  border-color: var(--color-primary);
+  background: var(--color-white);
+  box-shadow: 0 0 0 3px hsl(225, 70%, 50%, 0.12);
+}
+
+.form-input::placeholder { color: var(--color-gray-300); }
+
+.form-group--error .form-input {
+  border-color: var(--color-danger);
+  background: hsl(0, 72%, 51%, 0.03);
+}
+.form-group--error .form-input:focus {
+  box-shadow: 0 0 0 3px hsl(0, 72%, 51%, 0.12);
+}
+
+.form-error {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.form-error::before { content: "⚠ "; }
+
+/* Password toggle button */
+.input-toggle {
+  position: absolute;
+  right: var(--space-4);
+  color: var(--color-gray-400);
+  display: flex;
+  align-items: center;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.input-toggle:hover {
+  color: var(--color-gray-600);
+  background: var(--color-gray-100);
+}
+
+/* Custom checkbox */
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.form-checkbox input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.form-checkbox__box {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--color-gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.form-checkbox input:checked + .form-checkbox__box {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.form-checkbox input:checked + .form-checkbox__box::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: 2px solid white;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.form-checkbox__label {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-600);
+}
+
+/* ----------------------------------------------------------------
+   5. Buttons
+   ---------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  font-family: var(--font-sans);
+  border-radius: var(--radius-md);
+  border: 1.5px solid transparent;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast),
+              transform var(--transition-fast), border-color var(--transition-fast);
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.btn--primary {
+  background: var(--color-primary);
+  color: var(--color-white);
+  border-color: var(--color-primary);
+}
+.btn--primary:hover {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  box-shadow: 0 4px 14px hsl(225, 70%, 50%, 0.35);
+  transform: translateY(-1px);
+  color: var(--color-white);
+}
+.btn--primary:active { transform: translateY(0); }
+
+.btn--full { width: 100%; padding: var(--space-4); font-size: var(--font-size-md); }
+
+.btn__icon {
+  font-size: var(--font-size-lg);
+  transition: transform var(--transition-fast);
+}
+.btn:hover .btn__icon { transform: translateX(3px); }
+
+/* ----------------------------------------------------------------
+   6. Flash Messages
+   ---------------------------------------------------------------- */
+.flash-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.flash {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  animation: slideIn var(--transition-base) ease-out;
+}
+
+.flash--success { background: hsl(142, 71%, 45%, 0.1); color: hsl(142, 71%, 30%); border: 1px solid hsl(142, 71%, 45%, 0.3); }
+.flash--danger  { background: hsl(0, 72%, 51%, 0.1);   color: hsl(0, 72%, 35%);   border: 1px solid hsl(0, 72%, 51%, 0.3); }
+.flash--info    { background: hsl(200, 80%, 50%, 0.1); color: hsl(200, 80%, 30%); border: 1px solid hsl(200, 80%, 50%, 0.3); }
+.flash--warning { background: hsl(38, 92%, 50%, 0.1);  color: hsl(38, 92%, 30%);  border: 1px solid hsl(38, 92%, 50%, 0.3); }
+
+.flash__icon { font-size: var(--font-size-md); flex-shrink: 0; }
+.flash__text { flex: 1; }
+.flash__close {
+  background: none;
+  border: none;
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 0 var(--space-1);
+  line-height: 1;
+  color: inherit;
+  transition: opacity var(--transition-fast);
+}
+.flash__close:hover { opacity: 1; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ----------------------------------------------------------------
+   7. Dashboard Stubs (minimal placeholder styles)
+   ---------------------------------------------------------------- */
+.stub-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: center;
+  padding: var(--space-8);
+  background: var(--color-gray-50);
+}
+
+.stub-page__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.stub-page__badge--admin   { background: hsl(225, 70%, 50%, 0.12); color: var(--color-primary); }
+.stub-page__badge--teacher { background: hsl(38,  92%, 50%, 0.12); color: hsl(38, 92%, 35%); }
+.stub-page__badge--student { background: hsl(142, 71%, 45%, 0.12); color: hsl(142, 71%, 30%); }
+
+.stub-page__title {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  color: var(--color-gray-900);
+  letter-spacing: -0.02em;
+}
+
+.stub-page__subtitle {
+  font-size: var(--font-size-md);
+  color: var(--color-gray-400);
+  max-width: 380px;
+}
+
+.stub-page__meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-300);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-gray-100);
+  border-radius: var(--radius-full);
+}
+
+/* ----------------------------------------------------------------
+   8. Error Pages
+   ---------------------------------------------------------------- */
+.error-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: center;
+  padding: var(--space-8);
+}
+
+.error-page__code {
+  font-size: 7rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-gray-100);
+  letter-spacing: -0.04em;
+}
+
+.error-page__title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-gray-800);
+}
+
+.error-page__message {
+  font-size: var(--font-size-md);
+  color: var(--color-gray-400);
+  max-width: 420px;
+}
+
+/* ----------------------------------------------------------------
+   9. Responsive
+   ---------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .auth-wrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand {
+    display: none; /* hide brand panel on small screens */
+  }
+
+  .auth-card {
+    padding: var(--space-8) var(--space-6);
+    max-width: 100%;
+  }
+}

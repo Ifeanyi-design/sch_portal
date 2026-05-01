@@ -7,8 +7,8 @@ redirected to their role-specific dashboard.
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
-from app.extensions import db
 from app.models.user import User
+from app.forms.auth_forms import LoginForm
 
 auth_bp = Blueprint("auth", __name__, template_folder="../templates/auth")
 
@@ -27,23 +27,22 @@ def login():
     if current_user.is_authenticated:
         return _redirect_to_dashboard()
 
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-        remember = bool(request.form.get("remember"))
+    form = LoginForm()
 
-        user = User.query.filter_by(username=username).first()
+    if form.validate_on_submit():
+        # validate_on_submit() checks:  POST + CSRF token valid + field validators pass
+        user = User.query.filter_by(username=form.username.data.strip()).first()
 
-        if user and user.is_active and user.check_password(password):
-            login_user(user, remember=remember)
+        if user and user.is_active and user.check_password(form.password.data):
+            login_user(user, remember=form.remember.data)
             flash(f"Welcome back, {user.username}!", "success")
-            # Honor the next parameter for protected redirects
+            # Honor ?next= for protected page redirects
             next_page = request.args.get("next")
             return redirect(next_page or _dashboard_url(user))
 
         flash("Invalid username or password.", "danger")
 
-    return render_template("auth/login.html")
+    return render_template("auth/login.html", form=form)
 
 
 @auth_bp.route("/logout")

@@ -53,6 +53,20 @@ def create_app(config_name: str = "default") -> Flask:
     app.register_blueprint(student_bp, url_prefix="/student")
 
     # ------------------------------------------------------------------
+    # Register error handlers
+    # ------------------------------------------------------------------
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        from flask import render_template
+        return render_template("errors/403.html"), 403
+
+    @app.errorhandler(404)
+    def not_found(e):
+        from flask import render_template
+        return render_template("errors/404.html"), 404
+
+    # ------------------------------------------------------------------
     # Register the user loader for Flask-Login
     # ------------------------------------------------------------------
     from app.models.user import User  # noqa: F401 — needed for user_loader
