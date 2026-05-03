@@ -168,6 +168,9 @@ def validate_result(mapper, connection, target):
                 raise ValueError("Assessment-mode results require assessment_json.")
             if not class_.assessment_schema:
                 raise ValueError("Nursery classes must define an assessment_schema.")
+            missing_keys = set(class_.assessment_schema) - set(target.assessment_json)
+            if missing_keys:
+                raise ValueError("assessment_json is missing one or more class schema keys.")
             invalid_keys = set(target.assessment_json) - set(class_.assessment_schema)
             if invalid_keys:
                 raise ValueError("assessment_json contains keys not present in the class schema.")

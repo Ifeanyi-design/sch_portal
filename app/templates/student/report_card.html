@@ -56,58 +56,110 @@
       </div>
     </div>
 
-    <div class="mt-8 grid gap-4 md:grid-cols-3 {% if position.show_position %}xl:grid-cols-4{% endif %}">
-      <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
-        <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Subjects taken</p>
-        <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ summary.subjects_taken }}</p>
-      </div>
-      <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
-        <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Total score</p>
-        <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ "%.2f"|format(summary.total_score) }}</p>
-      </div>
-      <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
-        <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Percentage</p>
-        <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ "%.2f"|format(summary.percentage) }}%</p>
-      </div>
-      {% if position.show_position %}
-        <div class="rounded-[1.5rem] border border-brand-100 bg-brand-50 p-5">
-          <p class="text-xs uppercase tracking-[0.18em] text-brand-600">Position</p>
-          <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ position.position if position.position is not none else "-" }}</p>
+    {% if summary.has_assessment_mode and not summary.has_score_mode %}
+      <div class="mt-8 grid gap-4 md:grid-cols-3">
+        <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Assessment subjects</p>
+          <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ summary.assessment_subjects }}</p>
         </div>
-      {% endif %}
-    </div>
+        <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Remarks available</p>
+          <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ summary.remark_count }}</p>
+        </div>
+        <div class="rounded-[1.5rem] border border-brand-100 bg-brand-50 p-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-brand-600">Report mode</p>
+          <p class="mt-3 font-display text-3xl font-bold text-slateink">Assessment</p>
+        </div>
+      </div>
+    {% else %}
+      <div class="mt-8 grid gap-4 md:grid-cols-3 {% if position.show_position %}xl:grid-cols-4{% endif %}">
+        <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Subjects taken</p>
+          <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ summary.subjects_taken }}</p>
+        </div>
+        <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Total score</p>
+          <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ "%.2f"|format(summary.total_score) }}</p>
+        </div>
+        <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Percentage</p>
+          <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ "%.2f"|format(summary.percentage) }}%</p>
+        </div>
+        {% if position.show_position %}
+          <div class="rounded-[1.5rem] border border-brand-100 bg-brand-50 p-5">
+            <p class="text-xs uppercase tracking-[0.18em] text-brand-600">Position</p>
+            <p class="mt-3 font-display text-3xl font-bold text-slateink">{{ position.position if position.position is not none else "-" }}</p>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
 
     {% if position.show_position and position.scope_label %}
       <p class="mt-5 text-sm text-slate-500">Position scope: {{ position.scope_label }}</p>
     {% endif %}
 
     {% if results %}
-      <div class="mt-8 overflow-x-auto">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
-          <thead>
-            <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
-              <th class="pb-3 pr-4">Subject</th>
-              <th class="pb-3 pr-4">CA</th>
-              <th class="pb-3 pr-4">Exam</th>
-              <th class="pb-3 pr-4">Total</th>
-              <th class="pb-3 pr-4">Grade</th>
-              <th class="pb-3">Remark</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 text-slate-600">
-            {% for result in results if result.is_offered %}
-              <tr>
-                <td class="py-4 pr-4 font-semibold text-slateink">{{ result.subject.name }}</td>
-                <td class="py-4 pr-4">{{ result.ca_score if result.ca_score is not none else "-" }}</td>
-                <td class="py-4 pr-4">{{ result.exam_score if result.exam_score is not none else "-" }}</td>
-                <td class="py-4 pr-4">{{ result.total_score if result.total_score is not none else "-" }}</td>
-                <td class="py-4 pr-4">{{ result.grade if result.grade else "-" }}</td>
-                <td class="py-4">{{ result.remark if result.remark else "-" }}</td>
+      {% if summary.has_assessment_mode and not summary.has_score_mode %}
+        <div class="mt-8 overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead>
+              <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+                <th class="pb-3 pr-4">Subject</th>
+                <th class="pb-3 pr-4">Offered</th>
+                {% for item in assessment_schema_items %}
+                  <th class="pb-3 pr-4">{{ item.label }}</th>
+                {% endfor %}
+                <th class="pb-3">Remark</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-slate-600">
+              {% for result in results %}
+                <tr>
+                  <td class="py-4 pr-4 font-semibold text-slateink">{{ result.subject.name }}</td>
+                  <td class="py-4 pr-4">{{ "Yes" if result.is_offered else "No" }}</td>
+                  {% for item in assessment_schema_items %}
+                    <td class="py-4 pr-4">
+                      {% if result.is_offered %}
+                        {{ result.assessment_json.get(item.key, "-") if result.assessment_json else "-" }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                  <td class="py-4">{{ result.remark if result.remark else "-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="mt-8 overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead>
+              <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+                <th class="pb-3 pr-4">Subject</th>
+                <th class="pb-3 pr-4">CA</th>
+                <th class="pb-3 pr-4">Exam</th>
+                <th class="pb-3 pr-4">Total</th>
+                <th class="pb-3 pr-4">Grade</th>
+                <th class="pb-3">Remark</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-slate-600">
+              {% for result in results if result.is_offered %}
+                <tr>
+                  <td class="py-4 pr-4 font-semibold text-slateink">{{ result.subject.name }}</td>
+                  <td class="py-4 pr-4">{{ result.ca_score if result.ca_score is not none else "-" }}</td>
+                  <td class="py-4 pr-4">{{ result.exam_score if result.exam_score is not none else "-" }}</td>
+                  <td class="py-4 pr-4">{{ result.total_score if result.total_score is not none else "-" }}</td>
+                  <td class="py-4 pr-4">{{ result.grade if result.grade else "-" }}</td>
+                  <td class="py-4">{{ result.remark if result.remark else "-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
     {% else %}
       <div class="mt-8 rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-8 text-sm text-slate-500">No results are available for this selected period.</div>
     {% endif %}

@@ -150,6 +150,17 @@ def _subjects_for_scope(class_: Class | None, stream: Stream | None) -> list[Sub
     )
 
 
+def _assessment_schema_items(class_: Class | None) -> list[dict]:
+    """Return assessment schema entries in template-friendly form."""
+    if class_ is None or class_.level != Level.NURSERY or not class_.assessment_schema:
+        return []
+
+    return [
+        {"key": key, "label": key.replace("_", " ").title(), "type": value}
+        for key, value in class_.assessment_schema.items()
+    ]
+
+
 def _get_accessible_subject(
     class_: Class | None, stream: Stream | None, subject_id: int | None
 ) -> Subject | None:
@@ -229,6 +240,30 @@ def _coerce_score(raw_value: str | None, field_name: str, row_label: str) -> flo
         raise ValueError(f"{row_label}: {field_name} must be a number.") from exc
 
 
+def _coerce_assessment_value(
+    raw_value: str | None,
+    field_type: str,
+    field_label: str,
+    row_label: str,
+    *,
+    required: bool,
+):
+    """Normalize one nursery assessment field based on its schema type."""
+    value = (raw_value or "").strip()
+    if value == "":
+        if required:
+            raise ValueError(f"{row_label}: {field_label} is required when the subject is offered.")
+        return None
+
+    if field_type == "integer":
+        try:
+            return int(value)
+        except ValueError as exc:
+            raise ValueError(f"{row_label}: {field_label} must be a whole number.") from exc
+
+    return value
+
+
 def _ensure_editable_session(session_term: SessionTerm | None, class_: Class | None) -> None:
     """Abort the save flow if there is no open session-term for the selected class."""
     if session_term is None:
@@ -288,14 +323,68 @@ def _upsert_score_result(
     return result
 
 
+def _upsert_assessment_result(
+    *,
+    existing: Result | None,
+    student: Student,
+    subject: Subject,
+    class_: Class,
+    session_term: SessionTerm,
+    teacher: Teacher,
+    is_offered: bool,
+    assessment_json: dict,
+    remark: str | None,
+    target_status: str,
+) -> Result:
+    """Create or update one nursery assessment-mode result."""
+    if existing is not None and existing.result_status != ResultStatus.DRAFT:
+        raise ValueError(
+            f"{student.full_name}: this assessment is already {existing.result_status} and cannot be edited."
+        )
+
+    result = existing or Result(
+        student_id=student.id,
+        subject_id=subject.id,
+        class_id=class_.id,
+        stream_id=None,
+        session_id=session_term.session_id,
+        term=session_term.term,
+        mode=ResultMode.ASSESSMENT,
+        created_by=teacher.id,
+        uploaded_by_user_id=current_user.id,
+    )
+    if existing is None:
+        db.session.add(result)
+
+    result.created_by = teacher.id
+    result.uploaded_by_user_id = current_user.id
+    result.mode = ResultMode.ASSESSMENT
+    result.is_offered = is_offered
+    result.assessment_json = assessment_json
+    result.remark = remark
+    result.result_status = target_status
+
+    if result.result_status == ResultStatus.SUBMITTED and existing is not None:
+        if not existing.can_transition_to(ResultStatus.SUBMITTED, current_user.role):
+            raise ValueError(f"{student.full_name}: this assessment cannot be submitted.")
+
+    return result
+
+
 def _manual_entry_fields_present(student_id: int) -> bool:
     """Return whether a posted manual-entry row contains editable fields."""
     keys = {
         f"is_offered_{student_id}",
         f"ca_score_{student_id}",
         f"exam_score_{student_id}",
+        f"remark_{student_id}",
     }
-    return any(key in request.form for key in keys)
+    if any(key in request.form for key in keys):
+        return True
+    return any(
+        key.startswith("assessment__") and key.endswith(f"__{student_id}")
+        for key in request.form.keys()
+    )
 
 
 @teacher_bp.route("/dashboard")
@@ -438,6 +527,7 @@ def upload_results():
     existing_results = _result_lookup(
         selected_class, selected_stream, selected_subject, active_session_term
     )
+    assessment_schema_items = _assessment_schema_items(selected_class)
 
     return render_template(
         "teacher/upload_results.html",
@@ -451,6 +541,7 @@ def upload_results():
         subjects=subjects,
         students=scoped_students,
         existing_results=existing_results,
+        assessment_schema_items=assessment_schema_items,
         action_form=action_form,
         csv_form=csv_form,
         grade_scale=[
@@ -491,6 +582,14 @@ def _save_manual_results(
     """Persist one scoped result sheet from the teacher entry table."""
     if not all([selected_class, selected_subject]):
         raise ValueError("Select a class and subject before saving results.")
+    if selected_class.level == Level.NURSERY:
+        _save_manual_assessments(
+            teacher,
+            selected_class,
+            selected_subject,
+            session_term,
+        )
+        return
     if selected_class.level == Level.SECONDARY and selected_stream is None:
         raise ValueError("Select a stream before saving secondary results.")
 
@@ -549,6 +648,70 @@ def _save_manual_results(
         raise ValueError("No editable results were found in the selected scope.")
 
 
+def _save_manual_assessments(
+    teacher: Teacher,
+    selected_class: Class,
+    selected_subject: Subject,
+    session_term: SessionTerm,
+) -> None:
+    """Persist one nursery assessment sheet from the teacher entry table."""
+    schema_items = _assessment_schema_items(selected_class)
+    if not schema_items:
+        raise ValueError("This nursery class does not have a valid assessment schema.")
+
+    target_status = (
+        ResultStatus.SUBMITTED
+        if request.form.get("action") == "submit_results"
+        else ResultStatus.DRAFT
+    )
+    students = _students_for_scope(selected_class, None)
+    existing_results = _result_lookup(selected_class, None, selected_subject, session_term)
+
+    if not students:
+        raise ValueError("There are no students in the selected class.")
+
+    changed_rows = 0
+    for student in students:
+        existing = existing_results.get(student.id)
+        if existing is not None and existing.result_status != ResultStatus.DRAFT:
+            if _manual_entry_fields_present(student.id):
+                raise ValueError(
+                    f"{student.full_name}: submitted or locked assessments cannot be edited by teachers."
+                )
+            continue
+
+        is_offered = request.form.get(f"is_offered_{student.id}") == "on"
+        row_label = student.full_name
+        assessment_json = {}
+        for item in schema_items:
+            field_name = f"assessment__{item['key']}__{student.id}"
+            assessment_json[item["key"]] = _coerce_assessment_value(
+                request.form.get(field_name),
+                item["type"],
+                item["label"],
+                row_label,
+                required=is_offered,
+            )
+
+        remark = request.form.get(f"remark_{student.id}", "").strip() or None
+        _upsert_assessment_result(
+            existing=existing,
+            student=student,
+            subject=selected_subject,
+            class_=selected_class,
+            session_term=session_term,
+            teacher=teacher,
+            is_offered=is_offered,
+            assessment_json=assessment_json,
+            remark=remark,
+            target_status=target_status,
+        )
+        changed_rows += 1
+
+    if changed_rows == 0:
+        raise ValueError("No editable assessments were found in the selected class.")
+
+
 def _save_csv_results(
     teacher: Teacher,
     selected_class: Class | None,
@@ -560,6 +723,8 @@ def _save_csv_results(
     """Persist bulk results from a teacher-uploaded CSV file."""
     if not all([selected_class, selected_subject]):
         raise ValueError("Select a class and subject before uploading a CSV.")
+    if selected_class.level == Level.NURSERY:
+        raise ValueError("CSV upload is not available for nursery assessment mode.")
     if selected_class.level == Level.SECONDARY and selected_stream is None:
         raise ValueError("Select a stream before uploading secondary results.")
 

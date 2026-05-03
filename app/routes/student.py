@@ -112,9 +112,21 @@ def _result_rows(student: Student, session_id: int | None, term: str | None) -> 
             Result.session_id == session_id,
             Result.term == term,
         )
-        .order_by(Result.subject_id.asc())
+        .order_by(Result.subject_id.asc(), Result.id.asc())
         .all()
     )
+
+
+def _assessment_schema_items(student: Student) -> list[dict]:
+    """Return nursery assessment schema entries for the student's class."""
+    class_ = student.class_
+    if class_.level != Level.NURSERY or not class_.assessment_schema:
+        return []
+
+    return [
+        {"key": key, "label": key.replace("_", " ").title(), "type": value}
+        for key, value in class_.assessment_schema.items()
+    ]
 
 
 def _report_summary(results: list[Result]) -> dict:
@@ -134,6 +146,10 @@ def _report_summary(results: list[Result]) -> dict:
         "percentage": percentage,
         "has_score_mode": any(item.mode == ResultMode.SCORE for item in results),
         "has_assessment_mode": any(item.mode == ResultMode.ASSESSMENT for item in results),
+        "assessment_subjects": len(
+            [item for item in results if item.mode == ResultMode.ASSESSMENT and item.is_offered]
+        ),
+        "remark_count": len([item for item in results if item.remark]),
     }
 
 
@@ -186,6 +202,7 @@ def _report_context(student: Student) -> dict:
     )
     summary = _report_summary(results)
     position = _position_context(student, session_id, term)
+    assessment_schema_items = _assessment_schema_items(student)
 
     return {
         "student": student,
@@ -198,6 +215,7 @@ def _report_context(student: Student) -> dict:
         "results": results,
         "summary": summary,
         "position": position,
+        "assessment_schema_items": assessment_schema_items,
     }
 
 

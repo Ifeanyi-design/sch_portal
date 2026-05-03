@@ -35,19 +35,34 @@
       <h2 class="mt-2 font-display text-2xl font-bold text-slateink">{{ selected_period.label if selected_period else "No results yet" }}</h2>
       {% if selected_period %}
         <div class="mt-6 space-y-3">
-          <div class="rounded-2xl bg-slate-50 px-4 py-4">
-            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Subjects taken</p>
-            <p class="mt-2 text-2xl font-bold text-slateink">{{ summary.subjects_taken }}</p>
-          </div>
-          <div class="rounded-2xl bg-slate-50 px-4 py-4">
-            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Percentage</p>
-            <p class="mt-2 text-2xl font-bold text-slateink">{{ "%.2f"|format(summary.percentage) }}%</p>
-          </div>
-          {% if position.show_position and position.position is not none %}
-            <div class="rounded-2xl bg-brand-50 px-4 py-4">
-              <p class="text-xs uppercase tracking-[0.18em] text-brand-600">Position</p>
-              <p class="mt-2 text-2xl font-bold text-slateink">{{ position.position }}</p>
+          {% if summary.has_assessment_mode and not summary.has_score_mode %}
+            <div class="rounded-2xl bg-slate-50 px-4 py-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Assessment subjects</p>
+              <p class="mt-2 text-2xl font-bold text-slateink">{{ summary.assessment_subjects }}</p>
             </div>
+            <div class="rounded-2xl bg-slate-50 px-4 py-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Remarks available</p>
+              <p class="mt-2 text-2xl font-bold text-slateink">{{ summary.remark_count }}</p>
+            </div>
+            <div class="rounded-2xl bg-brand-50 px-4 py-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-brand-600">Report mode</p>
+              <p class="mt-2 text-xl font-bold text-slateink">Assessment</p>
+            </div>
+          {% else %}
+            <div class="rounded-2xl bg-slate-50 px-4 py-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Subjects taken</p>
+              <p class="mt-2 text-2xl font-bold text-slateink">{{ summary.subjects_taken }}</p>
+            </div>
+            <div class="rounded-2xl bg-slate-50 px-4 py-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Percentage</p>
+              <p class="mt-2 text-2xl font-bold text-slateink">{{ "%.2f"|format(summary.percentage) }}%</p>
+            </div>
+            {% if position.show_position and position.position is not none %}
+              <div class="rounded-2xl bg-brand-50 px-4 py-4">
+                <p class="text-xs uppercase tracking-[0.18em] text-brand-600">Position</p>
+                <p class="mt-2 text-2xl font-bold text-slateink">{{ position.position }}</p>
+              </div>
+            {% endif %}
           {% endif %}
         </div>
       {% else %}
