@@ -1,108 +1,104 @@
-{% extends "base.html" %}
+{% extends "layouts/app_shell.html" %}
 
-{% block title %}Manage Sessions{% endblock %}
+{% block title %}Sessions{% endblock %}
+{% block page_eyebrow %}Admin Workspace{% endblock %}
+{% block page_title %}Sessions and Result Windows{% endblock %}
 
-{% block body %}
-<main class="page-shell">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">Admin Control</p>
-      <h1>Sessions and Result Windows</h1>
-      <p class="page-copy">Create academic sessions, choose the active session-term, and control the global result-entry lock.</p>
-    </div>
-  </section>
-
-  <section class="two-column-grid">
-    <article class="card">
-      <h2 class="card__title">Create Session</h2>
-      <form class="stack" method="POST" action="{{ url_for('admin.sessions') }}">
+{% block shell_content %}
+<div class="space-y-6">
+  <section class="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <h2 class="font-display text-2xl font-bold text-slateink">Create session</h2>
+      <form method="POST" class="mt-6 space-y-4">
         {{ action_form.hidden_tag() }}
         <input type="hidden" name="action" value="create_session" />
-        <div class="form-group">
-          <label class="form-label" for="session_name">Session Name</label>
-          <input class="form-input" id="session_name" name="name" placeholder="2026/2027" required />
-        </div>
-        <button class="btn btn--primary" type="submit">Create Session</button>
+        <input name="name" class="w-full rounded-2xl border-slate-200 bg-slate-50" placeholder="2026/2027" required />
+        <button class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Create session</button>
       </form>
-    </article>
 
-    <article class="card">
-      <h2 class="card__title">Set Active Session</h2>
-      <form class="stack" method="POST" action="{{ url_for('admin.sessions') }}">
+      <div class="mt-8 h-px bg-slate-200"></div>
+
+      <h3 class="mt-8 font-display text-xl font-bold text-slateink">Active session</h3>
+      <form method="POST" class="mt-4 space-y-4">
         {{ action_form.hidden_tag() }}
         <input type="hidden" name="action" value="set_active_session" />
-        <div class="form-group">
-          <label class="form-label" for="active_session_id">Session</label>
-          <select class="form-input" id="active_session_id" name="session_id" required>
-            <option value="">Select session</option>
-            {% for session in sessions %}
-              <option value="{{ session.id }}">{{ session.name }}{% if session.is_active %} (Active){% endif %}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <button class="btn btn--primary" type="submit">Activate Session</button>
+        <select name="session_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
+          <option value="">Select session</option>
+          {% for session in sessions %}
+            <option value="{{ session.id }}">{{ session.name }}{% if session.is_active %} · Active{% endif %}</option>
+          {% endfor %}
+        </select>
+        <button class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Activate session</button>
       </form>
     </article>
-  </section>
 
-  <section class="card">
-    <h2 class="card__title">Session Terms</h2>
-    <div class="stack">
-      {% for session in sessions %}
-        <article class="structure-card">
-          <h3 class="subheading">{{ session.name }}{% if session.is_active %} <span class="status-pill status-pill--draft">Active Session</span>{% endif %}</h3>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Term</th>
-                  <th>Entry Window</th>
-                  <th>Global Lock</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for session_term in session_terms_by_session.get(session.id, []) %}
-                  <tr>
-                    <td>{{ session_term.term|title }}</td>
-                    <td>
-                      {% if session_term.is_result_entry_active %}
-                        <span class="status-pill status-pill--draft">Active</span>
-                      {% else %}
-                        <span class="status-pill status-pill--empty">Inactive</span>
-                      {% endif %}
-                    </td>
-                    <td>
-                      {% if session_term.is_locked %}
-                        <span class="status-pill status-pill--locked">Locked</span>
-                      {% else %}
-                        <span class="status-pill status-pill--draft">Open</span>
-                      {% endif %}
-                    </td>
-                    <td class="actions-row">
-                      <form method="POST" action="{{ url_for('admin.sessions') }}">
-                        {{ action_form.hidden_tag() }}
-                        <input type="hidden" name="action" value="set_active_term" />
-                        <input type="hidden" name="session_term_id" value="{{ session_term.id }}" />
-                        <button class="btn btn--secondary" type="submit">Set Active</button>
-                      </form>
-                      <form method="POST" action="{{ url_for('admin.sessions') }}">
-                        {{ action_form.hidden_tag() }}
-                        <input type="hidden" name="action" value="toggle_global_lock" />
-                        <input type="hidden" name="session_term_id" value="{{ session_term.id }}" />
-                        <button class="btn btn--secondary" type="submit">
-                          {{ "Unlock" if session_term.is_locked else "Lock" }}
-                        </button>
-                      </form>
-                    </td>
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <div>
+        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Session terms</p>
+        <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Control term windows and global locks</h2>
+      </div>
+      <div class="mt-6 space-y-4">
+        {% for session in sessions %}
+          <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-5">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <h3 class="font-display text-lg font-bold text-slateink">{{ session.name }}</h3>
+                <p class="text-sm text-slate-500">{{ "Current active session" if session.is_active else "Inactive session" }}</p>
+              </div>
+              {% if session.is_active %}
+                <span class="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Active</span>
+              {% endif %}
+            </div>
+
+            <div class="mt-5 overflow-x-auto">
+              <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead>
+                  <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+                    <th class="pb-3 pr-4">Term</th>
+                    <th class="pb-3 pr-4">Entry window</th>
+                    <th class="pb-3 pr-4">Global lock</th>
+                    <th class="pb-3">Actions</th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-600">
+                  {% for session_term in session_terms_by_session.get(session.id, []) %}
+                    <tr>
+                      <td class="py-4 pr-4 font-semibold text-slateink">{{ session_term.term|title }}</td>
+                      <td class="py-4 pr-4">
+                        <span class="rounded-full px-3 py-1 text-xs font-medium {% if session_term.is_result_entry_active %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-500{% endif %}">
+                          {{ "Active" if session_term.is_result_entry_active else "Inactive" }}
+                        </span>
+                      </td>
+                      <td class="py-4 pr-4">
+                        <span class="rounded-full px-3 py-1 text-xs font-medium {% if session_term.is_locked %}bg-rose-100 text-rose-700{% else %}bg-brand-100 text-brand-700{% endif %}">
+                          {{ "Locked" if session_term.is_locked else "Open" }}
+                        </span>
+                      </td>
+                      <td class="py-4">
+                        <div class="flex flex-wrap gap-2">
+                          <form method="POST">
+                            {{ action_form.hidden_tag() }}
+                            <input type="hidden" name="action" value="set_active_term" />
+                            <input type="hidden" name="session_term_id" value="{{ session_term.id }}" />
+                            <button class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-brand-200 hover:text-brand-700">Set active</button>
+                          </form>
+                          <form method="POST">
+                            {{ action_form.hidden_tag() }}
+                            <input type="hidden" name="action" value="toggle_global_lock" />
+                            <input type="hidden" name="session_term_id" value="{{ session_term.id }}" />
+                            <button class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-brand-200 hover:text-brand-700">{{ "Unlock" if session_term.is_locked else "Lock" }}</button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </article>
-      {% endfor %}
-    </div>
+        {% endfor %}
+      </div>
+    </article>
   </section>
-</main>
+</div>
 {% endblock %}

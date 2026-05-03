@@ -1,124 +1,131 @@
-{% extends "base.html" %}
+{% extends "layouts/app_shell.html" %}
 
-{% block title %}Manage Teachers{% endblock %}
+{% block title %}Teachers{% endblock %}
+{% block page_eyebrow %}Admin Workspace{% endblock %}
+{% block page_title %}Teachers and Assignments{% endblock %}
 
-{% block body %}
-<main class="page-shell">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">Admin Control</p>
-      <h1>Teachers</h1>
-      <p class="page-copy">Create teacher accounts and assign their class or class-stream access scope.</p>
-    </div>
-  </section>
-
-  <section class="two-column-grid">
-    <article class="card">
-      <h2 class="card__title">Create Teacher</h2>
-      <form class="stack" method="POST" action="{{ url_for('admin.teachers') }}">
+{% block shell_content %}
+<div class="space-y-6">
+  <section class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <h2 class="font-display text-2xl font-bold text-slateink">Create teacher account</h2>
+      <p class="mt-2 text-sm text-slate-500">Add a staff profile and login identity in one step.</p>
+      <form method="POST" class="mt-6 grid gap-4 sm:grid-cols-2">
         {{ action_form.hidden_tag() }}
         <input type="hidden" name="action" value="create_teacher" />
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label" for="first_name">First Name</label>
-            <input class="form-input" id="first_name" name="first_name" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="last_name">Last Name</label>
-            <input class="form-input" id="last_name" name="last_name" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="username">Username</label>
-            <input class="form-input" id="username" name="username" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="email">Email</label>
-            <input class="form-input" id="email" name="email" type="email" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="password">Password</label>
-            <input class="form-input" id="password" name="password" type="password" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="staff_id">Staff ID</label>
-            <input class="form-input" id="staff_id" name="staff_id" />
-          </div>
-          <div class="form-group form-group--full">
-            <label class="form-label" for="phone">Phone</label>
-            <input class="form-input" id="phone" name="phone" />
-          </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-600">First name</label>
+          <input name="first_name" class="w-full rounded-2xl border-slate-200 bg-slate-50" required />
         </div>
-        <button class="btn btn--primary" type="submit">Create Teacher</button>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-600">Last name</label>
+          <input name="last_name" class="w-full rounded-2xl border-slate-200 bg-slate-50" required />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-600">Username</label>
+          <input name="username" class="w-full rounded-2xl border-slate-200 bg-slate-50" required />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-600">Email</label>
+          <input name="email" type="email" class="w-full rounded-2xl border-slate-200 bg-slate-50" required />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-600">Password</label>
+          <input name="password" type="password" class="w-full rounded-2xl border-slate-200 bg-slate-50" required />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-600">Staff ID</label>
+          <input name="staff_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="mb-2 block text-sm font-medium text-slate-600">Phone</label>
+          <input name="phone" class="w-full rounded-2xl border-slate-200 bg-slate-50" />
+        </div>
+        <div class="sm:col-span-2 pt-2">
+          <button class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Create teacher</button>
+        </div>
       </form>
     </article>
 
-    <article class="card">
-      <h2 class="card__title">Assign Teacher Scope</h2>
-      <form class="stack" method="POST" action="{{ url_for('admin.teachers') }}">
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <h2 class="font-display text-2xl font-bold text-slateink">Assign teaching scope</h2>
+      <p class="mt-2 text-sm text-slate-500">Use class-only access for Nursery/Primary and stream-specific access for Secondary where needed.</p>
+      <form method="POST" class="mt-6 space-y-4">
         {{ action_form.hidden_tag() }}
         <input type="hidden" name="action" value="assign_teacher" />
-        <div class="form-group">
-          <label class="form-label" for="teacher_id">Teacher</label>
-          <select class="form-input" id="teacher_id" name="teacher_id" required>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-600">Teacher</label>
+          <select name="teacher_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
             <option value="">Select teacher</option>
             {% for teacher in teachers %}
               <option value="{{ teacher.id }}">{{ teacher.full_name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="class_id">Class</label>
-          <select class="form-input" id="class_id" name="class_id" required>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-600">Class</label>
+          <select name="class_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
             <option value="">Select class</option>
             {% for class_ in classes %}
               <option value="{{ class_.id }}">{{ class_.name }} ({{ class_.level|title }})</option>
             {% endfor %}
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="stream_id">Stream</label>
-          <select class="form-input" id="stream_id" name="stream_id">
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-600">Stream restriction</label>
+          <select name="stream_id" class="w-full rounded-2xl border-slate-200 bg-slate-50">
             <option value="">No stream restriction</option>
             {% for class_ in classes if class_.level == 'secondary' %}
               {% for stream in class_.streams %}
-                <option value="{{ stream.id }}">{{ class_.name }} - {{ stream.name }}</option>
+                <option value="{{ stream.id }}">{{ class_.name }} · {{ stream.name }}</option>
               {% endfor %}
             {% endfor %}
           </select>
         </div>
-        <button class="btn btn--primary" type="submit">Save Assignment</button>
+        <button class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Save assignment</button>
       </form>
     </article>
   </section>
 
-  <section class="card">
-    <h2 class="card__title">Teacher Directory</h2>
-    <div class="table-scroll">
-      <table class="data-table">
+  <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Directory</p>
+        <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Teacher roster</h2>
+      </div>
+      <div class="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">{{ teachers|length }} teacher accounts</div>
+    </div>
+    <div class="mt-6 overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
         <thead>
-          <tr>
-            <th>Name</th>
-            <th>Username</th>
-            <th>Staff ID</th>
-            <th>Phone</th>
-            <th>Assignments</th>
+          <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+            <th class="pb-3 pr-4">Teacher</th>
+            <th class="pb-3 pr-4">Username</th>
+            <th class="pb-3 pr-4">Staff ID</th>
+            <th class="pb-3 pr-4">Contact</th>
+            <th class="pb-3">Assignments</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody class="divide-y divide-slate-100 text-slate-600">
           {% for teacher in teachers %}
             <tr>
-              <td>{{ teacher.full_name }}</td>
-              <td>{{ teacher.user.username }}</td>
-              <td>{{ teacher.staff_id or "-" }}</td>
-              <td>{{ teacher.phone or "-" }}</td>
-              <td>
+              <td class="py-4 pr-4">
+                <div class="font-semibold text-slateink">{{ teacher.full_name }}</div>
+                <div class="text-xs text-slate-400">{{ teacher.user.email }}</div>
+              </td>
+              <td class="py-4 pr-4">{{ teacher.user.username }}</td>
+              <td class="py-4 pr-4">{{ teacher.staff_id or "-" }}</td>
+              <td class="py-4 pr-4">{{ teacher.phone or "-" }}</td>
+              <td class="py-4">
                 {% set assignments = assignments_by_teacher.get(teacher.id, []) %}
                 {% if assignments %}
-                  {% for assignment in assignments %}
-                    <div>{{ assignment.class_.name }}{% if assignment.stream %} / {{ assignment.stream.name }}{% endif %}</div>
-                  {% endfor %}
+                  <div class="flex flex-wrap gap-2">
+                    {% for assignment in assignments %}
+                      <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">{{ assignment.class_.name }}{% if assignment.stream %} · {{ assignment.stream.name }}{% endif %}</span>
+                    {% endfor %}
+                  </div>
                 {% else %}
-                  -
+                  <span class="text-slate-400">No assignments</span>
                 {% endif %}
               </td>
             </tr>
@@ -127,5 +134,5 @@
       </table>
     </div>
   </section>
-</main>
+</div>
 {% endblock %}

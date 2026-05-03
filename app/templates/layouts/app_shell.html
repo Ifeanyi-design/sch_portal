@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% set endpoint = request.endpoint or "" %}
+{% set nav_groups = [] %}
+
+{% if current_user.is_authenticated and current_user.role == 'admin' %}
+  {% set nav_groups = [
+    {'label': 'Overview', 'items': [
+      {'title': 'Dashboard', 'endpoint': 'admin.dashboard', 'href': url_for('admin.dashboard')},
+      {'title': 'Teachers', 'endpoint': 'admin.teachers', 'href': url_for('admin.teachers')},
+      {'title': 'Students', 'endpoint': 'admin.students', 'href': url_for('admin.students')},
+      {'title': 'Structure', 'endpoint': 'admin.classes', 'href': url_for('admin.classes')},
+      {'title': 'Sessions', 'endpoint': 'admin.sessions', 'href': url_for('admin.sessions')},
+      {'title': 'Results', 'endpoint': 'admin.results', 'href': url_for('admin.results')},
+    ]}
+  ] %}
+{% elif current_user.is_authenticated and current_user.role == 'teacher' %}
+  {% set nav_groups = [
+    {'label': 'Workspace', 'items': [
+      {'title': 'Dashboard', 'endpoint': 'teacher.dashboard', 'href': url_for('teacher.dashboard')},
+      {'title': 'Assigned Classes', 'endpoint': 'teacher.classes', 'href': url_for('teacher.classes')},
+      {'title': 'Students', 'endpoint': 'teacher.students', 'href': url_for('teacher.students')},
+      {'title': 'Result Entry', 'endpoint': 'teacher.upload_results', 'href': url_for('teacher.upload_results')},
+    ]}
+  ] %}
+{% elif current_user.is_authenticated and current_user.role == 'student' %}
+  {% set nav_groups = [
+    {'label': 'Student', 'items': [
+      {'title': 'Dashboard', 'endpoint': 'student.dashboard', 'href': url_for('student.dashboard')},
+      {'title': 'My Results', 'endpoint': 'student.results', 'href': url_for('student.results')},
+      {'title': 'Report Card', 'endpoint': 'student.report_card', 'href': url_for('student.report_card')},
+    ]}
+  ] %}
+{% endif %}
+
+{% block body %}
+<div class="min-h-screen lg:flex">
+  <div class="fixed inset-0 z-40 hidden bg-slate-900/40 backdrop-blur-sm lg:hidden" data-sidebar-overlay></div>
+
+  <aside class="fixed inset-y-0 left-0 z-50 flex w-80 -translate-x-full flex-col border-r border-slate-200/70 bg-white/90 px-5 py-5 shadow-soft backdrop-blur transition duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0" data-sidebar>
+    <div class="flex items-center justify-between">
+      <a href="{{ url_for(endpoint.split('.')[0] ~ '.dashboard') if endpoint else url_for('auth.login') }}" class="flex items-center gap-3">
+        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-lg font-display font-bold text-white shadow-soft">SA</div>
+        <div>
+          <p class="font-display text-lg font-bold text-slateink">SAMS</p>
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Academic Portal</p>
+        </div>
+      </a>
+      <button type="button" class="rounded-xl border border-slate-200 p-2 text-slate-500 lg:hidden" data-sidebar-close>
+        <span class="sr-only">Close menu</span>
+        ✕
+      </button>
+    </div>
+
+    <div class="mt-8 rounded-3xl border border-slate-200/80 bg-mesh-glow bg-brand-50 px-4 py-4">
+      <p class="text-xs uppercase tracking-[0.2em] text-brand-700">{{ current_user.role|title }}</p>
+      <h2 class="mt-2 font-display text-lg font-bold text-slateink">{{ current_user.full_name }}</h2>
+      <p class="mt-1 text-sm text-slate-500">{{ current_user.email }}</p>
+    </div>
+
+    <nav class="mt-8 flex-1 space-y-7 overflow-y-auto pr-1">
+      {% for group in nav_groups %}
+        <div>
+          <p class="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{{ group["label"] }}</p>
+          <div class="space-y-1.5">
+            {% for item in group["items"] %}
+              {% set active = endpoint == item.endpoint %}
+              <a href="{{ item.href }}" class="group flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-medium transition
+                {% if active %}
+                  bg-brand-600 text-white shadow-soft
+                {% else %}
+                  text-slate-600 hover:bg-slate-100 hover:text-slateink
+                {% endif %}
+              ">
+                <span>{{ item.title }}</span>
+                <span class="text-xs {% if active %}text-white/80{% else %}text-slate-300 group-hover:text-slate-500{% endif %}">•</span>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    </nav>
+
+    <div class="border-t border-slate-200 pt-5">
+      <a href="{{ url_for('auth.logout') }}" class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700">
+        <span>Sign out</span>
+        <span>↗</span>
+      </a>
+    </div>
+  </aside>
+
+  <div class="min-w-0 flex-1">
+    <header class="sticky top-0 z-30 border-b border-white/60 bg-white/75 backdrop-blur">
+      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <div class="flex items-center gap-3">
+          <button type="button" class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm lg:hidden" data-sidebar-open>
+            <span class="sr-only">Open menu</span>
+            ☰
+          </button>
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{% block page_eyebrow %}Workspace{% endblock %}</p>
+            <h1 class="font-display text-2xl font-bold text-slateink">{% block page_title %}Dashboard{% endblock %}</h1>
+          </div>
+        </div>
+        <div class="hidden items-center gap-3 md:flex">
+          {% block page_actions %}{% endblock %}
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      {% block shell_content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}

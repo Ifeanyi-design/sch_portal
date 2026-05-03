@@ -1,50 +1,62 @@
-{% extends "base.html" %}
+{% extends "layouts/app_shell.html" %}
 
 {% block title %}Teacher Dashboard{% endblock %}
+{% block page_eyebrow %}Teacher Workspace{% endblock %}
+{% block page_title %}Teaching Dashboard{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('teacher.upload_results') }}" class="inline-flex items-center rounded-2xl bg-slateink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700">Enter Results</a>
+{% endblock %}
 
-{% block body %}
-<main class="page-shell">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">Teacher Workspace</p>
-      <h1>Welcome, {{ teacher.full_name }}</h1>
-      <p class="page-copy">Work only within your assigned classes and streams. Result access is enforced server-side.</p>
-    </div>
-    <div class="card">
-      <h2 class="card__title">Active Result Window</h2>
+{% block shell_content %}
+<div class="space-y-6">
+  <section class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <p class="text-xs uppercase tracking-[0.2em] text-brand-600">Daily workflow</p>
+      <h2 class="mt-3 font-display text-3xl font-bold text-slateink">Stay focused on your assigned classes and result sheets.</h2>
+      <p class="mt-3 max-w-2xl text-sm leading-7 text-slate-500">This teacher workspace keeps the scope deliberately narrow: only assigned classes, stream-aware result entry for secondary, and a table-first grading workflow with CSV support.</p>
+      <div class="mt-6 grid gap-4 md:grid-cols-3">
+        <a href="{{ url_for('teacher.classes') }}" class="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-5 transition hover:border-brand-200 hover:bg-white">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Scope</p>
+          <p class="mt-2 font-display text-xl font-bold text-slateink">{{ assigned_classes|length }}</p>
+          <p class="mt-2 text-sm text-slate-500">Assigned classes</p>
+        </a>
+        <a href="{{ url_for('teacher.students') }}" class="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-5 transition hover:border-brand-200 hover:bg-white">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Students</p>
+          <p class="mt-2 font-display text-xl font-bold text-slateink">Scoped</p>
+          <p class="mt-2 text-sm text-slate-500">View only your allowed learners</p>
+        </a>
+        <a href="{{ url_for('teacher.upload_results') }}" class="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-5 transition hover:border-brand-200 hover:bg-white">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Entry</p>
+          <p class="mt-2 font-display text-xl font-bold text-slateink">Table-first</p>
+          <p class="mt-2 text-sm text-slate-500">Single entry and CSV upload</p>
+        </a>
+      </div>
+    </article>
+
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Current term</p>
+      <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Result entry window</h2>
       {% if active_session_term %}
-        <p><strong>Session:</strong> {{ active_session_term.session.name }}</p>
-        <p><strong>Term:</strong> {{ active_session_term.term|title }}</p>
-        <p><strong>Status:</strong>
-          {% if active_session_term.is_locked %}
-            <span class="status-pill status-pill--locked">Locked</span>
-          {% else %}
-            <span class="status-pill status-pill--draft">Open</span>
-          {% endif %}
-        </p>
+        <div class="mt-6 space-y-4">
+          <div class="rounded-3xl bg-slate-50 p-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Session</p>
+            <p class="mt-2 text-lg font-semibold text-slateink">{{ active_session_term.session.name }}</p>
+          </div>
+          <div class="rounded-3xl bg-slate-50 p-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Term</p>
+            <p class="mt-2 text-lg font-semibold text-slateink">{{ active_session_term.term|title }}</p>
+          </div>
+          <div class="rounded-3xl {% if active_session_term.is_locked %}bg-rose-50{% else %}bg-emerald-50{% endif %} p-4">
+            <p class="text-xs uppercase tracking-[0.18em] {% if active_session_term.is_locked %}text-rose-600{% else %}text-emerald-600{% endif %}">Status</p>
+            <p class="mt-2 text-lg font-semibold {% if active_session_term.is_locked %}text-rose-700{% else %}text-emerald-700{% endif %}">
+              {{ "Locked" if active_session_term.is_locked else "Open for entry" }}
+            </p>
+          </div>
+        </div>
       {% else %}
-        <p>No active session-term is available for teacher result entry.</p>
+        <p class="mt-4 text-sm leading-7 text-slate-500">There is no active result-entry period yet.</p>
       {% endif %}
-    </div>
-  </section>
-
-  <section class="card-grid">
-    <article class="card">
-      <h2 class="card__title">Assigned Classes</h2>
-      <p class="metric">{{ assigned_classes|length }}</p>
-      <p class="hint">Use the classes page to inspect your access scope.</p>
-      <a class="btn btn--primary" href="{{ url_for('teacher.classes') }}">View Classes</a>
-    </article>
-    <article class="card">
-      <h2 class="card__title">Results</h2>
-      <p class="hint">Enter results one subject at a time with full class/stream validation.</p>
-      <a class="btn btn--primary" href="{{ url_for('teacher.upload_results') }}">Manage Results</a>
-    </article>
-    <article class="card">
-      <h2 class="card__title">Students</h2>
-      <p class="hint">View only students inside your assignment scope.</p>
-      <a class="btn btn--primary" href="{{ url_for('teacher.students') }}">View Students</a>
     </article>
   </section>
-</main>
+</div>
 {% endblock %}

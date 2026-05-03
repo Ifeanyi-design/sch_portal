@@ -3,11 +3,12 @@
 {% block title %}Forbidden{% endblock %}
 
 {% block body %}
-<main class="page-shell">
-  <section class="empty-state">
-    <h1>403</h1>
-    <p>You do not have permission to access that page or result scope.</p>
-    <a class="btn btn--primary" href="{{ url_for('auth.login') }}">Back to Login</a>
+<main class="flex min-h-screen items-center justify-center px-4 py-10">
+  <section class="w-full max-w-xl rounded-[2rem] border border-white/80 bg-white/90 p-10 text-center shadow-soft">
+    <p class="text-xs uppercase tracking-[0.2em] text-rose-600">Access denied</p>
+    <h1 class="mt-4 font-display text-5xl font-bold text-slateink">403</h1>
+    <p class="mt-4 text-sm leading-7 text-slate-500">You do not have permission to access that page or that academic scope.</p>
+    <a href="{{ url_for('auth.login') }}" class="mt-8 inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Back to login</a>
   </section>
 </main>
 {% endblock %}

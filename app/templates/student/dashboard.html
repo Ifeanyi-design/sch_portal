@@ -1,48 +1,59 @@
-{% extends "base.html" %}
+{% extends "layouts/app_shell.html" %}
 
 {% block title %}Student Dashboard{% endblock %}
+{% block page_eyebrow %}Student Portal{% endblock %}
+{% block page_title %}Welcome Back{% endblock %}
+{% block page_actions %}
+  <a href="{{ url_for('student.report_card', session_id=selected_session_id, term=selected_term) }}" class="inline-flex items-center rounded-2xl bg-slateink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700">Open Report Card</a>
+{% endblock %}
 
-{% block body %}
-<main class="page-shell">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">Student Portal</p>
-      <h1>Welcome, {{ student.full_name }}</h1>
-      <p class="page-copy">Your results are visible only to your own account. Use the report pages below to review your term-by-term record.</p>
-    </div>
-    <div class="card">
-      <h2 class="card__title">Academic Profile</h2>
-      <p><strong>Student Code:</strong> {{ student.student_code }}</p>
-      <p><strong>Class:</strong> {{ student.class_.name }}</p>
-      <p><strong>Stream:</strong> {{ student.stream.name if student.stream else "N/A" }}</p>
-    </div>
-  </section>
+{% block shell_content %}
+<div class="space-y-6">
+  <section class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <p class="text-xs uppercase tracking-[0.2em] text-brand-600">Student view</p>
+      <h2 class="mt-3 font-display text-3xl font-bold text-slateink">{{ student.full_name }}</h2>
+      <p class="mt-3 max-w-2xl text-sm leading-7 text-slate-500">Your dashboard keeps things simple: your class, your report card, and a clean summary of the current academic period.</p>
+      <div class="mt-6 grid gap-4 md:grid-cols-3">
+        <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Student code</p>
+          <p class="mt-3 text-lg font-semibold text-slateink">{{ student.student_code }}</p>
+        </div>
+        <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Class</p>
+          <p class="mt-3 text-lg font-semibold text-slateink">{{ student.class_.name }}</p>
+        </div>
+        <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Stream</p>
+          <p class="mt-3 text-lg font-semibold text-slateink">{{ student.stream.name if student.stream else "N/A" }}</p>
+        </div>
+      </div>
+    </article>
 
-  <section class="card-grid">
-    <article class="card">
-      <h2 class="card__title">Latest Summary</h2>
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Latest summary</p>
+      <h2 class="mt-2 font-display text-2xl font-bold text-slateink">{{ selected_period.label if selected_period else "No results yet" }}</h2>
       {% if selected_period %}
-        <p><strong>Period:</strong> {{ selected_period.label }}</p>
-        <p><strong>Subjects Taken:</strong> {{ summary.subjects_taken }}</p>
-        <p><strong>Total Score:</strong> {{ "%.2f"|format(summary.total_score) }}</p>
-        <p><strong>Percentage:</strong> {{ "%.2f"|format(summary.percentage) }}%</p>
-        {% if position.show_position and position.position is not none %}
-          <p><strong>Position:</strong> {{ position.position }}{% if position.scope_label %} in {{ position.scope_label }}{% endif %}</p>
-        {% endif %}
+        <div class="mt-6 space-y-3">
+          <div class="rounded-2xl bg-slate-50 px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Subjects taken</p>
+            <p class="mt-2 text-2xl font-bold text-slateink">{{ summary.subjects_taken }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Percentage</p>
+            <p class="mt-2 text-2xl font-bold text-slateink">{{ "%.2f"|format(summary.percentage) }}%</p>
+          </div>
+          {% if position.show_position and position.position is not none %}
+            <div class="rounded-2xl bg-brand-50 px-4 py-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-brand-600">Position</p>
+              <p class="mt-2 text-2xl font-bold text-slateink">{{ position.position }}</p>
+            </div>
+          {% endif %}
+        </div>
       {% else %}
-        <p>No results are available yet.</p>
+        <p class="mt-4 text-sm leading-7 text-slate-500">Your result summary will appear here as soon as records are available.</p>
       {% endif %}
     </article>
-    <article class="card">
-      <h2 class="card__title">View Results</h2>
-      <p class="hint">Open your full results by session and term.</p>
-      <a class="btn btn--primary" href="{{ url_for('student.results') }}">Open Results</a>
-    </article>
-    <article class="card">
-      <h2 class="card__title">Printable Report</h2>
-      <p class="hint">Use the clean report-card view when you need to print.</p>
-      <a class="btn btn--primary" href="{{ url_for('student.report_card') }}">Open Report Card</a>
-    </article>
   </section>
-</main>
+</div>
 {% endblock %}

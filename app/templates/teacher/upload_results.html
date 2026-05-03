@@ -1,161 +1,124 @@
-{% extends "base.html" %}
+{% extends "layouts/app_shell.html" %}
 
-{% block title %}Result Management{% endblock %}
+{% block title %}Result Entry{% endblock %}
+{% block page_eyebrow %}Teacher Workspace{% endblock %}
+{% block page_title %}Result Entry and CSV Upload{% endblock %}
 
-{% block body %}
-<main class="page-shell">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">Teacher Result Management</p>
-      <h1>Enter and Edit Results</h1>
-      <p class="page-copy">Pick a class, select a stream for secondary classes, then choose a subject. Teachers can work only inside assigned scope.</p>
-    </div>
-    <div class="card">
-      <h2 class="card__title">Current Session-Term</h2>
-      {% if active_session_term %}
-        <p><strong>Session:</strong> {{ active_session_term.session.name }}</p>
-        <p><strong>Term:</strong> {{ active_session_term.term|title }}</p>
-        <p><strong>Lock:</strong>
-          {% if active_session_term.is_locked %}
-            <span class="status-pill status-pill--locked">Locked</span>
-          {% else %}
-            <span class="status-pill status-pill--draft">Open</span>
-          {% endif %}
-        </p>
-      {% else %}
-        <p>No active session-term is available. Result entry is disabled.</p>
-      {% endif %}
-    </div>
-  </section>
-
-  <section class="card">
-    <h2 class="card__title">Scope Selection</h2>
-    <form class="filters" method="GET" action="{{ url_for('teacher.upload_results') }}">
-      <div class="filter-group">
-        <label for="class_id">Class</label>
-        <select id="class_id" name="class_id" class="form-input">
+{% block shell_content %}
+<div class="space-y-6">
+  <section class="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <div class="flex items-end justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Scope selector</p>
+          <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Class → stream → subject</h2>
+        </div>
+      </div>
+      <form method="GET" class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <select name="class_id" class="rounded-2xl border-slate-200 bg-slate-50">
           <option value="">Select class</option>
           {% for class_ in assigned_classes %}
             <option value="{{ class_.id }}" {% if selected_class and selected_class.id == class_.id %}selected{% endif %}>{{ class_.name }} ({{ class_.level|title }})</option>
           {% endfor %}
         </select>
-      </div>
-
-      {% if selected_class and selected_class.level == 'secondary' %}
-        <div class="filter-group">
-          <label for="stream_id">Stream</label>
-          <select id="stream_id" name="stream_id" class="form-input" required>
+        {% if selected_class and selected_class.level == 'secondary' %}
+          <select name="stream_id" class="rounded-2xl border-slate-200 bg-slate-50" required>
             <option value="">Select stream</option>
             {% for stream in streams %}
               <option value="{{ stream.id }}" {% if selected_stream and selected_stream.id == stream.id %}selected{% endif %}>{{ stream.name }}</option>
             {% endfor %}
           </select>
-        </div>
-      {% endif %}
-
-      {% if selected_class and (selected_class.level != 'secondary' or selected_stream) %}
-        <div class="filter-group">
-          <label for="subject_id">Subject</label>
-          <select id="subject_id" name="subject_id" class="form-input">
+        {% endif %}
+        {% if selected_class and (selected_class.level != 'secondary' or selected_stream) %}
+          <select name="subject_id" class="rounded-2xl border-slate-200 bg-slate-50">
             <option value="">Select subject</option>
             {% for subject in subjects %}
               <option value="{{ subject.id }}" {% if selected_subject and selected_subject.id == subject.id %}selected{% endif %}>{{ subject.name }}</option>
             {% endfor %}
           </select>
-        </div>
-      {% endif %}
+        {% endif %}
+        <button class="inline-flex items-center justify-center rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Load result sheet</button>
+      </form>
+    </article>
 
-      <div class="actions-row">
-        <button class="btn btn--primary" type="submit">Load Result Sheet</button>
-      </div>
-    </form>
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Result window</p>
+      <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Current term</h2>
+      {% if active_session_term %}
+        <div class="mt-5 space-y-3">
+          <div class="rounded-2xl bg-slate-50 px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Session</p>
+            <p class="mt-2 font-semibold text-slateink">{{ active_session_term.session.name }}</p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Term</p>
+            <p class="mt-2 font-semibold text-slateink">{{ active_session_term.term|title }}</p>
+          </div>
+          <div class="rounded-2xl {% if active_session_term.is_locked %}bg-rose-50{% else %}bg-emerald-50{% endif %} px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.18em] {% if active_session_term.is_locked %}text-rose-600{% else %}text-emerald-600{% endif %}">Status</p>
+            <p class="mt-2 font-semibold {% if active_session_term.is_locked %}text-rose-700{% else %}text-emerald-700{% endif %}">{{ "Locked" if active_session_term.is_locked else "Open" }}</p>
+          </div>
+        </div>
+      {% else %}
+        <p class="mt-4 text-sm text-slate-500">No active session-term is available.</p>
+      {% endif %}
+    </article>
   </section>
 
   {% if selected_subject and students %}
-    <section class="card">
-      <div class="section-row">
+    <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 class="card__title">Single Entry and Editing</h2>
-          <p class="hint">{{ selected_class.name }}{% if selected_stream %} / {{ selected_stream.name }}{% endif %} / {{ selected_subject.name }}</p>
-        </div>
-        <div class="hint">
-          <p>Editable only while the active session-term is open.</p>
-          <p>Submitted or locked rows remain read-only for teachers.</p>
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Single entry</p>
+          <h2 class="mt-2 font-display text-2xl font-bold text-slateink">{{ selected_class.name }}{% if selected_stream %} · {{ selected_stream.name }}{% endif %} · {{ selected_subject.name }}</h2>
+          <p class="mt-2 text-sm text-slate-500">CA and Exam scores calculate total and grade instantly. Submitted and locked rows remain read-only.</p>
         </div>
       </div>
 
-      <form method="POST" action="{{ url_for('teacher.upload_results') }}">
+      <form method="POST" class="mt-6">
         {{ action_form.hidden_tag() }}
         <input type="hidden" name="form_name" value="manual-entry" />
         <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
         <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
         <input type="hidden" name="subject_id" value="{{ selected_subject.id }}" />
 
-        <div class="table-scroll">
-          <table class="data-table">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead>
-              <tr>
-                <th>Student</th>
-                <th>Code</th>
-                <th>Offered</th>
-                <th>CA</th>
-                <th>Exam</th>
-                <th>Total</th>
-                <th>Grade</th>
-                <th>Status</th>
+              <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+                <th class="pb-3 pr-4">Student</th>
+                <th class="pb-3 pr-4">Code</th>
+                <th class="pb-3 pr-4">Offered</th>
+                <th class="pb-3 pr-4">CA</th>
+                <th class="pb-3 pr-4">Exam</th>
+                <th class="pb-3 pr-4">Total</th>
+                <th class="pb-3 pr-4">Grade</th>
+                <th class="pb-3">Status</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody class="divide-y divide-slate-100 text-slate-600">
               {% for student in students %}
                 {% set result = existing_results.get(student.id) %}
                 {% set row_locked = result and result.result_status != 'draft' %}
-                {% set total = result.total_score if result and result.total_score is not none else '' %}
-                {% set grade = result.grade if result and result.grade else '' %}
-                <tr class="{% if row_locked %}row-locked{% endif %}">
-                  <td>{{ student.full_name }}</td>
-                  <td>{{ student.student_code }}</td>
-                  <td>
-                    <label class="checkbox-inline">
-                      <input
-                        type="checkbox"
-                        name="is_offered_{{ student.id }}"
-                        {% if not result or result.is_offered %}checked{% endif %}
-                        {% if row_locked or (active_session_term and active_session_term.is_locked) or not active_session_term %}disabled{% endif %}
-                      />
-                      <span>Offered</span>
-                    </label>
+                <tr class="{% if row_locked %}bg-slate-50/80{% endif %}">
+                  <td class="py-4 pr-4 font-semibold text-slateink">{{ student.full_name }}</td>
+                  <td class="py-4 pr-4">{{ student.student_code }}</td>
+                  <td class="py-4 pr-4">
+                    <input type="checkbox" name="is_offered_{{ student.id }}" {% if not result or result.is_offered %}checked{% endif %} {% if row_locked or (active_session_term and active_session_term.is_locked) or not active_session_term %}disabled{% endif %} class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
                   </td>
-                  <td>
-                    <input
-                      class="form-input table-input js-ca-score"
-                      type="number"
-                      min="0"
-                      max="40"
-                      step="0.01"
-                      name="ca_score_{{ student.id }}"
-                      value="{{ result.ca_score if result and result.ca_score is not none else '' }}"
-                      {% if row_locked or (active_session_term and active_session_term.is_locked) or not active_session_term %}disabled{% endif %}
-                    />
+                  <td class="py-4 pr-4">
+                    <input type="number" min="0" max="40" step="0.01" name="ca_score_{{ student.id }}" value="{{ result.ca_score if result and result.ca_score is not none else '' }}" {% if row_locked or (active_session_term and active_session_term.is_locked) or not active_session_term %}disabled{% endif %} class="js-ca-score w-24 rounded-2xl border-slate-200 bg-slate-50" />
                   </td>
-                  <td>
-                    <input
-                      class="form-input table-input js-exam-score"
-                      type="number"
-                      min="0"
-                      max="60"
-                      step="0.01"
-                      name="exam_score_{{ student.id }}"
-                      value="{{ result.exam_score if result and result.exam_score is not none else '' }}"
-                      {% if row_locked or (active_session_term and active_session_term.is_locked) or not active_session_term %}disabled{% endif %}
-                    />
+                  <td class="py-4 pr-4">
+                    <input type="number" min="0" max="60" step="0.01" name="exam_score_{{ student.id }}" value="{{ result.exam_score if result and result.exam_score is not none else '' }}" {% if row_locked or (active_session_term and active_session_term.is_locked) or not active_session_term %}disabled{% endif %} class="js-exam-score w-24 rounded-2xl border-slate-200 bg-slate-50" />
                   </td>
-                  <td class="js-total-score">{{ total }}</td>
-                  <td class="js-grade" data-grade-scale='{{ grade_scale|tojson }}'>{{ grade }}</td>
-                  <td>
+                  <td class="js-total-score py-4 pr-4">{{ result.total_score if result and result.total_score is not none else '' }}</td>
+                  <td class="js-grade py-4 pr-4">{{ result.grade if result and result.grade else '' }}</td>
+                  <td class="py-4">
                     {% if result %}
-                      <span class="status-pill status-pill--{{ result.result_status }}">{{ status_badge(result.result_status) }}</span>
+                      <span class="rounded-full px-3 py-1 text-xs font-medium {% if result.result_status == 'locked' %}bg-rose-100 text-rose-700{% elif result.result_status == 'submitted' %}bg-amber-100 text-amber-700{% else %}bg-brand-100 text-brand-700{% endif %}">{{ status_badge(result.result_status) }}</span>
                     {% else %}
-                      <span class="status-pill status-pill--empty">Not started</span>
+                      <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">Not started</span>
                     {% endif %}
                   </td>
                 </tr>
@@ -164,107 +127,90 @@
           </table>
         </div>
 
-        <div class="actions-row">
-          <button class="btn btn--primary" type="submit" name="action" value="save_draft" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %}>Save Draft</button>
-          <button class="btn btn--secondary" type="submit" name="action" value="submit_results" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %}>Submit Results</button>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <button type="submit" name="action" value="save_draft" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
+          <button type="submit" name="action" value="submit_results" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Submit results</button>
         </div>
       </form>
     </section>
 
-    <section class="card">
-      <div class="section-row">
+    <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 class="card__title">Bulk Upload</h2>
-          <p class="hint">Upload one CSV per selected class{% if selected_stream %} / stream{% endif %} / subject scope.</p>
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Bulk upload</p>
+          <h2 class="mt-2 font-display text-2xl font-bold text-slateink">CSV upload for this subject scope</h2>
+          <p class="mt-2 text-sm text-slate-500">Required columns: <code>student_code,ca_score,exam_score,is_offered</code></p>
         </div>
       </div>
-      <form method="POST" action="{{ url_for('teacher.upload_results') }}" enctype="multipart/form-data" class="stack">
+      <form method="POST" enctype="multipart/form-data" class="mt-6 grid gap-4 md:grid-cols-[1fr_auto_auto]">
         {{ csv_form.hidden_tag() }}
         <input type="hidden" name="form_name" value="csv-upload" />
         <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
         <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
         <input type="hidden" name="subject_id" value="{{ selected_subject.id }}" />
-
-        <div class="form-group">
-          <label class="form-label" for="csv_file">{{ csv_form.csv_file.label.text }}</label>
-          {{ csv_form.csv_file(class="form-input", id="csv_file") }}
-          <p class="hint">Required CSV headers: <code>student_code,ca_score,exam_score,is_offered</code></p>
-        </div>
-
-        <div class="card card--soft">
-          <h3 class="card__title">Validation Rules</h3>
-          <ul class="simple-list">
-            <li>Only students inside the selected class{% if selected_stream %} and stream{% endif %} are accepted.</li>
-            <li>The selected subject must already belong to the chosen class/stream scope.</li>
-            <li><code>is_offered = false</code> stores the subject as not offered and clears score fields.</li>
-            <li>Duplicate rows inside the same file use the last valid occurrence.</li>
-          </ul>
-        </div>
-
-        <div class="actions-row">
-          <button class="btn btn--primary" type="submit" name="action" value="save_csv_draft" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %}>Upload as Draft</button>
-          <button class="btn btn--secondary" type="submit" name="action" value="submit_csv_results" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %}>Upload and Submit</button>
-        </div>
+        {{ csv_form.csv_file(class="block w-full rounded-2xl border-slate-200 bg-slate-50 text-sm") }}
+        <button type="submit" name="action" value="save_csv_draft" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex items-center justify-center rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Upload draft</button>
+        <button type="submit" name="action" value="submit_csv_results" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex items-center justify-center rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Upload and submit</button>
       </form>
     </section>
   {% elif selected_subject %}
-    <section class="empty-state">
-      <h2>No Students in Scope</h2>
-      <p>There are no active students in the selected class{% if selected_stream %} and stream{% endif %}.</p>
+    <section class="rounded-[2rem] border border-dashed border-slate-200 bg-white/75 p-12 text-center shadow-soft">
+      <h2 class="font-display text-2xl font-bold text-slateink">No students in this scope</h2>
+      <p class="mt-3 text-sm leading-7 text-slate-500">Adjust the class or stream selection to load a result sheet.</p>
     </section>
   {% else %}
-    <section class="empty-state">
-      <h2>Choose a Result Scope</h2>
-      <p>Select your class, stream where required, and subject to load the result sheet.</p>
+    <section class="rounded-[2rem] border border-dashed border-slate-200 bg-white/75 p-12 text-center shadow-soft">
+      <h2 class="font-display text-2xl font-bold text-slateink">Select a subject workspace</h2>
+      <p class="mt-3 text-sm leading-7 text-slate-500">Choose your class, then a stream for secondary classes, and finally the subject you want to enter.</p>
     </section>
   {% endif %}
-</main>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-  (() => {
-    const rows = document.querySelectorAll('.data-table tbody tr');
-    const gradeScale = [
-      { minimum: 90, grade: 'A+' },
-      { minimum: 80, grade: 'A' },
-      { minimum: 70, grade: 'B' },
-      { minimum: 60, grade: 'C' },
-      { minimum: 50, grade: 'D' },
-      { minimum: 40, grade: 'E' },
-      { minimum: 0, grade: 'F' }
-    ];
+  {{ super() }}
+  <script>
+    (() => {
+      const rows = document.querySelectorAll("tbody tr");
+      const gradeScale = [
+        { minimum: 90, grade: "A+" },
+        { minimum: 80, grade: "A" },
+        { minimum: 70, grade: "B" },
+        { minimum: 60, grade: "C" },
+        { minimum: 50, grade: "D" },
+        { minimum: 40, grade: "E" },
+        { minimum: 0, grade: "F" }
+      ];
 
-    const deriveGrade = (score) => {
-      for (const item of gradeScale) {
-        if (score >= item.minimum) return item.grade;
-      }
-      return 'F';
-    };
-
-    rows.forEach((row) => {
-      const caInput = row.querySelector('.js-ca-score');
-      const examInput = row.querySelector('.js-exam-score');
-      const totalCell = row.querySelector('.js-total-score');
-      const gradeCell = row.querySelector('.js-grade');
-      if (!caInput || !examInput || !totalCell || !gradeCell) return;
-
-      const updateRow = () => {
-        const ca = parseFloat(caInput.value || '0');
-        const exam = parseFloat(examInput.value || '0');
-        if (!caInput.value && !examInput.value) {
-          totalCell.textContent = '';
-          gradeCell.textContent = '';
-          return;
+      const deriveGrade = (score) => {
+        for (const item of gradeScale) {
+          if (score >= item.minimum) return item.grade;
         }
-        const total = Math.round((ca + exam) * 100) / 100;
-        totalCell.textContent = total.toFixed(2);
-        gradeCell.textContent = deriveGrade(total);
+        return "F";
       };
 
-      caInput.addEventListener('input', updateRow);
-      examInput.addEventListener('input', updateRow);
-    });
-  })();
-</script>
+      rows.forEach((row) => {
+        const caInput = row.querySelector(".js-ca-score");
+        const examInput = row.querySelector(".js-exam-score");
+        const totalCell = row.querySelector(".js-total-score");
+        const gradeCell = row.querySelector(".js-grade");
+        if (!caInput || !examInput || !totalCell || !gradeCell) return;
+
+        const update = () => {
+          const hasValues = caInput.value !== "" || examInput.value !== "";
+          if (!hasValues) {
+            totalCell.textContent = "";
+            gradeCell.textContent = "";
+            return;
+          }
+          const total = (parseFloat(caInput.value || "0") + parseFloat(examInput.value || "0"));
+          totalCell.textContent = total.toFixed(2);
+          gradeCell.textContent = deriveGrade(total);
+        };
+
+        caInput.addEventListener("input", update);
+        examInput.addEventListener("input", update);
+      });
+    })();
+  </script>
 {% endblock %}

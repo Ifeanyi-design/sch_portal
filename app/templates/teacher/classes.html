@@ -1,42 +1,47 @@
-{% extends "base.html" %}
+{% extends "layouts/app_shell.html" %}
 
 {% block title %}Assigned Classes{% endblock %}
+{% block page_eyebrow %}Teacher Workspace{% endblock %}
+{% block page_title %}Assigned Classes{% endblock %}
 
-{% block body %}
-<main class="page-shell">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">Teacher Scope</p>
-      <h1>Your Assigned Classes</h1>
-      <p class="page-copy">You can only view classes and streams listed here.</p>
-    </div>
-    <a class="btn btn--primary" href="{{ url_for('teacher.upload_results') }}">Manage Results</a>
-  </section>
-
-  <section class="stack">
-    {% for item in class_scopes %}
-      <article class="card">
-        <h2 class="card__title">{{ item.class.name }}</h2>
-        <p><strong>Level:</strong> {{ item.class.level|title }}</p>
-        <p><strong>Show Position:</strong> {{ "Yes" if item.class.show_position else "No" }}</p>
+{% block shell_content %}
+<section class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+  {% for item in class_scopes %}
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.18em] text-slate-400">{{ item.class.level|title }}</p>
+          <h2 class="mt-2 font-display text-2xl font-bold text-slateink">{{ item.class.name }}</h2>
+        </div>
+        <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
+          {% if item.has_stream_scope %}Stream aware{% else %}Full class{% endif %}
+        </span>
+      </div>
+      <p class="mt-4 text-sm leading-7 text-slate-500">
         {% if item.has_stream_scope %}
-          <p><strong>Allowed Streams:</strong>
-            {% if item.streams %}
-              {{ item.streams | map(attribute='name') | join(', ') }}
-            {% else %}
-              None assigned
-            {% endif %}
-          </p>
+          You can work only within these secondary stream scopes.
         {% else %}
-          <p><strong>Access Scope:</strong> Full class</p>
+          You can enter results for the full class.
         {% endif %}
-      </article>
-    {% else %}
-      <article class="empty-state">
-        <h2>No classes assigned</h2>
-        <p>Your teacher account does not currently have any class assignments.</p>
-      </article>
-    {% endfor %}
-  </section>
-</main>
+      </p>
+      <div class="mt-5 flex flex-wrap gap-2">
+        {% if item.streams %}
+          {% for stream in item.streams %}
+            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{{ stream.name }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">No stream restriction</span>
+        {% endif %}
+      </div>
+      <div class="mt-6">
+        <a href="{{ url_for('teacher.upload_results', class_id=item.class.id) }}" class="inline-flex rounded-2xl bg-slateink px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Manage results</a>
+      </div>
+    </article>
+  {% else %}
+    <article class="rounded-[2rem] border border-dashed border-slate-200 bg-white/75 p-12 text-center shadow-soft lg:col-span-2 xl:col-span-3">
+      <h2 class="font-display text-2xl font-bold text-slateink">No assigned classes</h2>
+      <p class="mt-3 text-sm leading-7 text-slate-500">Your account has not been assigned to any class yet.</p>
+    </article>
+  {% endfor %}
+</section>
 {% endblock %}

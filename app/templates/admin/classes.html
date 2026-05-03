@@ -1,217 +1,176 @@
-{% extends "base.html" %}
+{% extends "layouts/app_shell.html" %}
 
-{% block title %}Manage Structure{% endblock %}
+{% block title %}Structure{% endblock %}
+{% block page_eyebrow %}Admin Workspace{% endblock %}
+{% block page_title %}Classes, Streams, and Subjects{% endblock %}
 
-{% block body %}
-<main class="page-shell">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">Admin Control</p>
-      <h1>Classes, Streams, and Subjects</h1>
-      <p class="page-copy">Build the academic structure and control whether each class exposes positions.</p>
-    </div>
-  </section>
-
-  <section class="three-column-grid">
-    <article class="card">
-      <h2 class="card__title">Create Class</h2>
-      <form class="stack" method="POST" action="{{ url_for('admin.classes') }}">
+{% block shell_content %}
+<div class="space-y-6">
+  <section class="grid gap-6 xl:grid-cols-3">
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <h2 class="font-display text-2xl font-bold text-slateink">Create class</h2>
+      <form method="POST" class="mt-6 space-y-4">
         {{ action_form.hidden_tag() }}
         <input type="hidden" name="action" value="create_class" />
-        <div class="form-group">
-          <label class="form-label" for="class_name">Class Name</label>
-          <input class="form-input" id="class_name" name="name" required />
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="level">Level</label>
-          <select class="form-input" id="level" name="level" required>
-            <option value="">Select level</option>
-            <option value="nursery">Nursery</option>
-            <option value="primary">Primary</option>
-            <option value="secondary">Secondary</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="session_id">Session</label>
-          <select class="form-input" id="session_id" name="session_id" required>
-            <option value="">Select session</option>
-            {% for session in sessions %}
-              <option value="{{ session.id }}">{{ session.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="arm">Arm</label>
-          <input class="form-input" id="arm" name="arm" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="assessment_schema_keys">Nursery Assessment Keys</label>
-          <input class="form-input" id="assessment_schema_keys" name="assessment_schema_keys" placeholder="behavior, attendance, participation" />
-        </div>
-        <label class="checkbox-inline">
-          <input type="checkbox" name="show_position" />
-          <span>Show position on report cards</span>
+        <input name="name" class="w-full rounded-2xl border-slate-200 bg-slate-50" placeholder="Class name" required />
+        <select name="level" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
+          <option value="">Select level</option>
+          <option value="nursery">Nursery</option>
+          <option value="primary">Primary</option>
+          <option value="secondary">Secondary</option>
+        </select>
+        <select name="session_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
+          <option value="">Select session</option>
+          {% for session in sessions %}
+            <option value="{{ session.id }}">{{ session.name }}</option>
+          {% endfor %}
+        </select>
+        <input name="arm" class="w-full rounded-2xl border-slate-200 bg-slate-50" placeholder="Arm (optional)" />
+        <input name="assessment_schema_keys" class="w-full rounded-2xl border-slate-200 bg-slate-50" placeholder="Nursery schema keys" />
+        <label class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <input type="checkbox" name="show_position" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+          <span>Show position for this class</span>
         </label>
-        <button class="btn btn--primary" type="submit">Create Class</button>
+        <button class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Create class</button>
       </form>
     </article>
 
-    <article class="card">
-      <h2 class="card__title">Create Stream</h2>
-      <form class="stack" method="POST" action="{{ url_for('admin.classes') }}">
-        {{ action_form.hidden_tag() }}
-        <input type="hidden" name="action" value="create_stream" />
-        <div class="form-group">
-          <label class="form-label" for="stream_class_id">Secondary Class</label>
-          <select class="form-input" id="stream_class_id" name="class_id" required>
-            <option value="">Select class</option>
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <h2 class="font-display text-2xl font-bold text-slateink">Streams and subjects</h2>
+      <div class="mt-6 space-y-6">
+        <form method="POST" class="space-y-4">
+          {{ action_form.hidden_tag() }}
+          <input type="hidden" name="action" value="create_stream" />
+          <select name="class_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
+            <option value="">Select secondary class</option>
             {% for class_ in classes if class_.level == 'secondary' %}
               <option value="{{ class_.id }}">{{ class_.name }}</option>
             {% endfor %}
           </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="stream_name">Stream Name</label>
-          <select class="form-input" id="stream_name" name="name" required>
+          <select name="name" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
             <option value="">Select stream</option>
             <option value="Science">Science</option>
             <option value="Commercial">Commercial</option>
             <option value="Arts">Arts</option>
           </select>
-        </div>
-        <button class="btn btn--primary" type="submit">Create Stream</button>
-      </form>
+          <button class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Create stream</button>
+        </form>
 
-      <hr class="section-divider" />
+        <div class="h-px bg-slate-200"></div>
 
-      <h2 class="card__title">Create Subject</h2>
-      <form class="stack" method="POST" action="{{ url_for('admin.classes') }}">
-        {{ action_form.hidden_tag() }}
-        <input type="hidden" name="action" value="create_subject" />
-        <div class="form-group">
-          <label class="form-label" for="subject_name">Subject Name</label>
-          <input class="form-input" id="subject_name" name="name" required />
-        </div>
-        <button class="btn btn--primary" type="submit">Create Subject</button>
-      </form>
+        <form method="POST" class="space-y-4">
+          {{ action_form.hidden_tag() }}
+          <input type="hidden" name="action" value="create_subject" />
+          <input name="name" class="w-full rounded-2xl border-slate-200 bg-slate-50" placeholder="New subject name" required />
+          <button class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Create subject</button>
+        </form>
+      </div>
     </article>
 
-    <article class="card">
-      <h2 class="card__title">Assign Subject</h2>
-      <form class="stack" method="POST" action="{{ url_for('admin.classes') }}">
-        {{ action_form.hidden_tag() }}
-        <input type="hidden" name="action" value="assign_class_subject" />
-        <h3 class="subheading">To Nursery or Primary Class</h3>
-        <div class="form-group">
-          <label class="form-label" for="class_subject_class_id">Class</label>
-          <select class="form-input" id="class_subject_class_id" name="class_id" required>
-            <option value="">Select class</option>
+    <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+      <h2 class="font-display text-2xl font-bold text-slateink">Assign subject</h2>
+      <div class="mt-6 space-y-6">
+        <form method="POST" class="space-y-4">
+          {{ action_form.hidden_tag() }}
+          <input type="hidden" name="action" value="assign_class_subject" />
+          <select name="class_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
+            <option value="">Select Nursery or Primary class</option>
             {% for class_ in classes if class_.level != 'secondary' %}
               <option value="{{ class_.id }}">{{ class_.name }}</option>
             {% endfor %}
           </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="class_subject_id">Subject</label>
-          <select class="form-input" id="class_subject_id" name="subject_id" required>
+          <select name="subject_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
             <option value="">Select subject</option>
             {% for subject in subjects %}
               <option value="{{ subject.id }}">{{ subject.name }}</option>
             {% endfor %}
           </select>
-        </div>
-        <label class="checkbox-inline">
-          <input type="checkbox" name="is_compulsory" checked />
-          <span>Compulsory</span>
-        </label>
-        <button class="btn btn--primary" type="submit">Assign to Class</button>
-      </form>
+          <label class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <input type="checkbox" name="is_compulsory" checked class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+            <span>Compulsory subject</span>
+          </label>
+          <button class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Assign to class</button>
+        </form>
 
-      <hr class="section-divider" />
+        <div class="h-px bg-slate-200"></div>
 
-      <form class="stack" method="POST" action="{{ url_for('admin.classes') }}">
-        {{ action_form.hidden_tag() }}
-        <input type="hidden" name="action" value="assign_stream_subject" />
-        <h3 class="subheading">To Secondary Stream</h3>
-        <div class="form-group">
-          <label class="form-label" for="stream_subject_stream_id">Stream</label>
-          <select class="form-input" id="stream_subject_stream_id" name="stream_id" required>
+        <form method="POST" class="space-y-4">
+          {{ action_form.hidden_tag() }}
+          <input type="hidden" name="action" value="assign_stream_subject" />
+          <select name="stream_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
             <option value="">Select stream</option>
             {% for stream in streams %}
-              <option value="{{ stream.id }}">{{ stream.class_.name }} - {{ stream.name }}</option>
+              <option value="{{ stream.id }}">{{ stream.class_.name }} · {{ stream.name }}</option>
             {% endfor %}
           </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="stream_subject_id">Subject</label>
-          <select class="form-input" id="stream_subject_id" name="subject_id" required>
+          <select name="subject_id" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
             <option value="">Select subject</option>
             {% for subject in subjects %}
               <option value="{{ subject.id }}">{{ subject.name }}</option>
             {% endfor %}
           </select>
-        </div>
-        <label class="checkbox-inline">
-          <input type="checkbox" name="is_compulsory" checked />
-          <span>Compulsory</span>
-        </label>
-        <button class="btn btn--primary" type="submit">Assign to Stream</button>
-      </form>
+          <label class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <input type="checkbox" name="is_compulsory" checked class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+            <span>Compulsory subject</span>
+          </label>
+          <button class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Assign to stream</button>
+        </form>
+      </div>
     </article>
   </section>
 
-  <section class="card">
-    <h2 class="card__title">Structure Overview</h2>
-    <div class="stack">
+  <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Structure map</p>
+        <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Current academic setup</h2>
+      </div>
+    </div>
+    <div class="mt-6 grid gap-4 lg:grid-cols-2">
       {% for class_ in classes %}
-        <article class="structure-card">
-          <div class="section-row">
+        <article class="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-5">
+          <div class="flex items-start justify-between gap-4">
             <div>
-              <h3 class="subheading">{{ class_.name }}</h3>
-              <p class="hint">{{ class_.level|title }} | Session {{ class_.session.name }}</p>
+              <h3 class="font-display text-lg font-bold text-slateink">{{ class_.name }}</h3>
+              <p class="mt-1 text-sm text-slate-500">{{ class_.level|title }} · {{ class_.session.name }}</p>
             </div>
-            <form method="POST" action="{{ url_for('admin.classes') }}">
+            <form method="POST">
               {{ action_form.hidden_tag() }}
               <input type="hidden" name="action" value="toggle_show_position" />
               <input type="hidden" name="class_id" value="{{ class_.id }}" />
-              <button class="btn btn--secondary" type="submit">
-                {{ "Hide Position" if class_.show_position else "Show Position" }}
-              </button>
+              <button class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-brand-200 hover:text-brand-700">{{ "Position On" if class_.show_position else "Position Off" }}</button>
             </form>
           </div>
-          <p><strong>Position Visible:</strong> {{ "Yes" if class_.show_position else "No" }}</p>
 
           {% if class_.level == 'secondary' %}
-            <div class="nested-panels">
+            <div class="mt-4 grid gap-3 md:grid-cols-2">
               {% for stream in class_.streams %}
-                <div class="nested-panel">
-                  <h4 class="nested-panel__title">{{ stream.name }}</h4>
-                  {% set assignments = stream_subjects_map.get(stream.id, []) %}
-                  {% if assignments %}
-                    {% for assignment in assignments %}
-                      <div>{{ assignment.subject.name }}{% if not assignment.is_compulsory %} (Optional){% endif %}</div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p class="font-semibold text-slateink">{{ stream.name }}</p>
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    {% for assignment in stream_subjects_map.get(stream.id, []) %}
+                      <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">{{ assignment.subject.name }}{% if not assignment.is_compulsory %} · Optional{% endif %}</span>
+                    {% else %}
+                      <span class="text-sm text-slate-400">No subjects assigned</span>
                     {% endfor %}
-                  {% else %}
-                    <div class="hint">No subjects assigned yet.</div>
-                  {% endif %}
+                  </div>
                 </div>
               {% else %}
-                <div class="hint">No streams created yet.</div>
+                <div class="text-sm text-slate-400">No streams created yet.</div>
               {% endfor %}
             </div>
           {% else %}
-            {% set assignments = class_subjects_map.get(class_.id, []) %}
-            {% if assignments %}
-              {% for assignment in assignments %}
-                <div>{{ assignment.subject.name }}{% if not assignment.is_compulsory %} (Optional){% endif %}</div>
+            <div class="mt-4 flex flex-wrap gap-2">
+              {% for assignment in class_subjects_map.get(class_.id, []) %}
+                <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">{{ assignment.subject.name }}{% if not assignment.is_compulsory %} · Optional{% endif %}</span>
+              {% else %}
+                <span class="text-sm text-slate-400">No subjects assigned</span>
               {% endfor %}
-            {% else %}
-              <div class="hint">No subjects assigned yet.</div>
-            {% endif %}
+            </div>
           {% endif %}
         </article>
       {% endfor %}
     </div>
   </section>
-</main>
+</div>
 {% endblock %}

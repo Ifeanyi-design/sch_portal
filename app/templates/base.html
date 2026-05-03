@@ -3,39 +3,104 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="SAMS — School Academic Management System" />
+  <meta name="description" content="School Academic Management System" />
   <title>{% block title %}SAMS{% endblock %} | School Academic Management</title>
-
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'IBM Plex Sans', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef6ff',
+              100: '#d8e9ff',
+              200: '#b9d7ff',
+              300: '#8ec0ff',
+              400: '#5ca0fb',
+              500: '#377fe8',
+              600: '#2564c9',
+              700: '#1f4fa2',
+              800: '#1f457f',
+              900: '#213e67',
+            },
+            slateink: '#0f172a',
+            mist: '#f7f9fc',
+            sage: '#e8f4ef',
+            sand: '#f8f3ea',
+          },
+          boxShadow: {
+            soft: '0 18px 40px -24px rgba(15, 23, 42, 0.22)',
+          },
+          backgroundImage: {
+            'mesh-glow': 'radial-gradient(circle at top left, rgba(55, 127, 232, 0.16), transparent 35%), radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.12), transparent 30%)',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      background:
+        radial-gradient(circle at top right, rgba(55, 127, 232, 0.08), transparent 28rem),
+        linear-gradient(180deg, #f8fbff 0%, #f5f7fb 100%);
+    }
 
-  <!-- Base styles -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+    ::selection {
+      background: rgba(55, 127, 232, 0.18);
+    }
 
-  {% block extra_css %}{% endblock %}
+    [x-cloak] {
+      display: none !important;
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
-
-  {% block body %}{% endblock %}
-
-  <!-- Flash messages — rendered by pages that include this block -->
+<body class="{% block body_class %}{% endblock %} min-h-screen font-sans text-slate-800 antialiased">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div id="flash-container" aria-live="polite">
+      <div class="fixed right-4 top-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">
         {% for category, message in messages %}
-          <div class="flash flash--{{ category }}" role="alert">
-            <span class="flash__icon">
-              {% if category == 'success' %}✓{% elif category == 'danger' %}✕{% else %}ℹ{% endif %}
-            </span>
-            <span class="flash__text">{{ message }}</span>
-            <button class="flash__close" onclick="this.parentElement.remove()" aria-label="Dismiss">&times;</button>
+          <div class="rounded-2xl border border-white/70 bg-white/95 px-4 py-3 shadow-soft backdrop-blur">
+            <div class="flex items-start gap-3">
+              <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full
+                {% if category == 'success' %}
+                  bg-emerald-100 text-emerald-700
+                {% elif category == 'danger' %}
+                  bg-rose-100 text-rose-700
+                {% else %}
+                  bg-brand-100 text-brand-700
+                {% endif %}
+              ">
+                {% if category == 'success' %}
+                  ✓
+                {% elif category == 'danger' %}
+                  !
+                {% else %}
+                  i
+                {% endif %}
+              </span>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-slate-700">{{ message }}</p>
+              </div>
+              <button type="button" class="text-slate-400 transition hover:text-slate-700" data-dismiss-alert>
+                <span class="sr-only">Dismiss</span>
+                ×
+              </button>
+            </div>
           </div>
         {% endfor %}
       </div>
     {% endif %}
   {% endwith %}
+
+  {% block body %}{% endblock %}
 
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   {% block extra_js %}{% endblock %}

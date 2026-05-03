@@ -1,75 +1,68 @@
-{% extends "base.html" %}
+{% extends "layouts/app_shell.html" %}
 
 {% block title %}Students{% endblock %}
+{% block page_eyebrow %}Teacher Workspace{% endblock %}
+{% block page_title %}Student Scope{% endblock %}
 
-{% block body %}
-<main class="page-shell">
-  <section class="page-header">
-    <div>
-      <p class="eyebrow">Student Scope</p>
-      <h1>Assigned Students</h1>
-      <p class="page-copy">Filter by your assigned class and stream to view eligible students.</p>
-    </div>
-  </section>
-
-  <section class="card">
-    <form class="filters" method="GET" action="{{ url_for('teacher.students') }}">
-      <div class="filter-group">
-        <label for="class_id">Class</label>
-        <select id="class_id" name="class_id" class="form-input">
-          <option value="">Select class</option>
-          {% for class_ in assigned_classes %}
-            <option value="{{ class_.id }}" {% if selected_class and selected_class.id == class_.id %}selected{% endif %}>{{ class_.name }} ({{ class_.level|title }})</option>
-          {% endfor %}
-        </select>
-      </div>
+{% block shell_content %}
+<div class="space-y-6">
+  <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+    <form method="GET" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <select name="class_id" class="rounded-2xl border-slate-200 bg-slate-50">
+        <option value="">Select class</option>
+        {% for class_ in assigned_classes %}
+          <option value="{{ class_.id }}" {% if selected_class and selected_class.id == class_.id %}selected{% endif %}>{{ class_.name }} ({{ class_.level|title }})</option>
+        {% endfor %}
+      </select>
 
       {% if selected_class and selected_class.level == 'secondary' %}
-        <div class="filter-group">
-          <label for="stream_id">Stream</label>
-          <select id="stream_id" name="stream_id" class="form-input">
-            <option value="">Select stream</option>
-            {% for stream in streams %}
-              <option value="{{ stream.id }}" {% if selected_stream and selected_stream.id == stream.id %}selected{% endif %}>{{ stream.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
+        <select name="stream_id" class="rounded-2xl border-slate-200 bg-slate-50">
+          <option value="">Select stream</option>
+          {% for stream in streams %}
+            <option value="{{ stream.id }}" {% if selected_stream and selected_stream.id == stream.id %}selected{% endif %}>{{ stream.name }}</option>
+          {% endfor %}
+        </select>
       {% endif %}
 
-      <div class="actions-row">
-        <button class="btn btn--primary" type="submit">Load Students</button>
-      </div>
+      <button class="inline-flex items-center justify-center rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Load students</button>
     </form>
   </section>
 
-  <section class="card">
-    <h2 class="card__title">Student List</h2>
+  <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Scoped roster</p>
+        <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Visible students</h2>
+      </div>
+      <div class="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">{{ students|length }} students</div>
+    </div>
+
     {% if students %}
-      <div class="table-scroll">
-        <table class="data-table">
+      <div class="mt-6 overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
           <thead>
-            <tr>
-              <th>Student Code</th>
-              <th>Name</th>
-              <th>Class</th>
-              <th>Stream</th>
+            <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+              <th class="pb-3 pr-4">Student</th>
+              <th class="pb-3 pr-4">Code</th>
+              <th class="pb-3 pr-4">Class</th>
+              <th class="pb-3">Stream</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-slate-100 text-slate-600">
             {% for student in students %}
               <tr>
-                <td>{{ student.student_code }}</td>
-                <td>{{ student.full_name }}</td>
-                <td>{{ student.class_.name }}</td>
-                <td>{{ student.stream.name if student.stream else "N/A" }}</td>
+                <td class="py-4 pr-4 font-semibold text-slateink">{{ student.full_name }}</td>
+                <td class="py-4 pr-4">{{ student.student_code }}</td>
+                <td class="py-4 pr-4">{{ student.class_.name }}</td>
+                <td class="py-4">{{ student.stream.name if student.stream else "-" }}</td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     {% else %}
-      <p class="hint">Choose a class and, for secondary, a stream to view students.</p>
+      <div class="mt-6 rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-8 text-sm text-slate-500">Select a class and, for secondary, a stream to load your allowed students.</div>
     {% endif %}
   </section>
-</main>
+</div>
 {% endblock %}
