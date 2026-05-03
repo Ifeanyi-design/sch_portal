@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}My Results{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Student Results</p>
+      <h1>My Results</h1>
+      <p class="page-copy">View your report card by session and term. Calculations include only subjects where <code>is_offered = true</code>.</p>
+    </div>
+    <a class="btn btn--primary" href="{{ url_for('student.report_card', session_id=selected_session_id, term=selected_term) }}">Printable Report Card</a>
+  </section>
+
+  <section class="card">
+    <form class="filters" method="GET" action="{{ url_for('student.results') }}">
+      <div class="filter-group">
+        <label for="session_id">Session</label>
+        <select id="session_id" name="session_id" class="form-input">
+          <option value="">Select session</option>
+          {% for session in available_sessions %}
+            <option value="{{ session.session_id }}" {% if selected_session_id == session.session_id %}selected{% endif %}>{{ session.session_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="term">Term</label>
+        <select id="term" name="term" class="form-input">
+          <option value="">Select term</option>
+          {% for period in available_terms %}
+            <option value="{{ period.term }}" {% if selected_term == period.term %}selected{% endif %}>{{ period.term|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="actions-row">
+        <button class="btn btn--primary" type="submit">Load Results</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="section-row">
+      <div>
+        <h2 class="card__title">Result Summary</h2>
+        {% if selected_period %}
+          <p class="hint">{{ selected_period.label }}</p>
+        {% endif %}
+      </div>
+      <div class="summary-grid">
+        <div class="summary-stat">
+          <span class="summary-stat__label">Subjects Taken</span>
+          <span class="summary-stat__value">{{ summary.subjects_taken }}</span>
+        </div>
+        <div class="summary-stat">
+          <span class="summary-stat__label">Total Score</span>
+          <span class="summary-stat__value">{{ "%.2f"|format(summary.total_score) }}</span>
+        </div>
+        <div class="summary-stat">
+          <span class="summary-stat__label">Percentage</span>
+          <span class="summary-stat__value">{{ "%.2f"|format(summary.percentage) }}%</span>
+        </div>
+        {% if position.show_position %}
+          <div class="summary-stat">
+            <span class="summary-stat__label">Position</span>
+            <span class="summary-stat__value">
+              {% if position.position is not none %}
+                {{ position.position }}
+              {% else %}
+                -
+              {% endif %}
+            </span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if position.show_position and position.scope_label %}
+      <p class="hint">Position scope: {{ position.scope_label }}</p>
+    {% endif %}
+
+    {% if results %}
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th>Offered</th>
+              <th>CA Score</th>
+              <th>Exam Score</th>
+              <th>Total Score</th>
+              <th>Grade</th>
+              <th>Remark</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for result in results %}
+              <tr>
+                <td>{{ result.subject.name }}</td>
+                <td>{{ "Yes" if result.is_offered else "No" }}</td>
+                <td>{{ result.ca_score if result.is_offered and result.ca_score is not none else "-" }}</td>
+                <td>{{ result.exam_score if result.is_offered and result.exam_score is not none else "-" }}</td>
+                <td>{{ result.total_score if result.is_offered and result.total_score is not none else "-" }}</td>
+                <td>{{ result.grade if result.is_offered and result.grade else "-" }}</td>
+                <td>{{ result.remark if result.remark else "-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="hint">No results are available for the selected period.</p>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

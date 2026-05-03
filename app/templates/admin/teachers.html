@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Teachers{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Admin Control</p>
+      <h1>Teachers</h1>
+      <p class="page-copy">Create teacher accounts and assign their class or class-stream access scope.</p>
+    </div>
+  </section>
+
+  <section class="two-column-grid">
+    <article class="card">
+      <h2 class="card__title">Create Teacher</h2>
+      <form class="stack" method="POST" action="{{ url_for('admin.teachers') }}">
+        {{ action_form.hidden_tag() }}
+        <input type="hidden" name="action" value="create_teacher" />
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="first_name">First Name</label>
+            <input class="form-input" id="first_name" name="first_name" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="last_name">Last Name</label>
+            <input class="form-input" id="last_name" name="last_name" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="username">Username</label>
+            <input class="form-input" id="username" name="username" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <input class="form-input" id="email" name="email" type="email" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <input class="form-input" id="password" name="password" type="password" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="staff_id">Staff ID</label>
+            <input class="form-input" id="staff_id" name="staff_id" />
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label" for="phone">Phone</label>
+            <input class="form-input" id="phone" name="phone" />
+          </div>
+        </div>
+        <button class="btn btn--primary" type="submit">Create Teacher</button>
+      </form>
+    </article>
+
+    <article class="card">
+      <h2 class="card__title">Assign Teacher Scope</h2>
+      <form class="stack" method="POST" action="{{ url_for('admin.teachers') }}">
+        {{ action_form.hidden_tag() }}
+        <input type="hidden" name="action" value="assign_teacher" />
+        <div class="form-group">
+          <label class="form-label" for="teacher_id">Teacher</label>
+          <select class="form-input" id="teacher_id" name="teacher_id" required>
+            <option value="">Select teacher</option>
+            {% for teacher in teachers %}
+              <option value="{{ teacher.id }}">{{ teacher.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="class_id">Class</label>
+          <select class="form-input" id="class_id" name="class_id" required>
+            <option value="">Select class</option>
+            {% for class_ in classes %}
+              <option value="{{ class_.id }}">{{ class_.name }} ({{ class_.level|title }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="stream_id">Stream</label>
+          <select class="form-input" id="stream_id" name="stream_id">
+            <option value="">No stream restriction</option>
+            {% for class_ in classes if class_.level == 'secondary' %}
+              {% for stream in class_.streams %}
+                <option value="{{ stream.id }}">{{ class_.name }} - {{ stream.name }}</option>
+              {% endfor %}
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn--primary" type="submit">Save Assignment</button>
+      </form>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2 class="card__title">Teacher Directory</h2>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Username</th>
+            <th>Staff ID</th>
+            <th>Phone</th>
+            <th>Assignments</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for teacher in teachers %}
+            <tr>
+              <td>{{ teacher.full_name }}</td>
+              <td>{{ teacher.user.username }}</td>
+              <td>{{ teacher.staff_id or "-" }}</td>
+              <td>{{ teacher.phone or "-" }}</td>
+              <td>
+                {% set assignments = assignments_by_teacher.get(teacher.id, []) %}
+                {% if assignments %}
+                  {% for assignment in assignments %}
+                    <div>{{ assignment.class_.name }}{% if assignment.stream %} / {{ assignment.stream.name }}{% endif %}</div>
+                  {% endfor %}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}

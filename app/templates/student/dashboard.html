@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Student Portal</p>
+      <h1>Welcome, {{ student.full_name }}</h1>
+      <p class="page-copy">Your results are visible only to your own account. Use the report pages below to review your term-by-term record.</p>
+    </div>
+    <div class="card">
+      <h2 class="card__title">Academic Profile</h2>
+      <p><strong>Student Code:</strong> {{ student.student_code }}</p>
+      <p><strong>Class:</strong> {{ student.class_.name }}</p>
+      <p><strong>Stream:</strong> {{ student.stream.name if student.stream else "N/A" }}</p>
+    </div>
+  </section>
+
+  <section class="card-grid">
+    <article class="card">
+      <h2 class="card__title">Latest Summary</h2>
+      {% if selected_period %}
+        <p><strong>Period:</strong> {{ selected_period.label }}</p>
+        <p><strong>Subjects Taken:</strong> {{ summary.subjects_taken }}</p>
+        <p><strong>Total Score:</strong> {{ "%.2f"|format(summary.total_score) }}</p>
+        <p><strong>Percentage:</strong> {{ "%.2f"|format(summary.percentage) }}%</p>
+        {% if position.show_position and position.position is not none %}
+          <p><strong>Position:</strong> {{ position.position }}{% if position.scope_label %} in {{ position.scope_label }}{% endif %}</p>
+        {% endif %}
+      {% else %}
+        <p>No results are available yet.</p>
+      {% endif %}
+    </article>
+    <article class="card">
+      <h2 class="card__title">View Results</h2>
+      <p class="hint">Open your full results by session and term.</p>
+      <a class="btn btn--primary" href="{{ url_for('student.results') }}">Open Results</a>
+    </article>
+    <article class="card">
+      <h2 class="card__title">Printable Report</h2>
+      <p class="hint">Use the clean report-card view when you need to print.</p>
+      <a class="btn btn--primary" href="{{ url_for('student.report_card') }}">Open Report Card</a>
+    </article>
+  </section>
+</main>
+{% endblock %}

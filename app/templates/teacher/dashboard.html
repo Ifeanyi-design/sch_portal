@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Teacher Workspace</p>
+      <h1>Welcome, {{ teacher.full_name }}</h1>
+      <p class="page-copy">Work only within your assigned classes and streams. Result access is enforced server-side.</p>
+    </div>
+    <div class="card">
+      <h2 class="card__title">Active Result Window</h2>
+      {% if active_session_term %}
+        <p><strong>Session:</strong> {{ active_session_term.session.name }}</p>
+        <p><strong>Term:</strong> {{ active_session_term.term|title }}</p>
+        <p><strong>Status:</strong>
+          {% if active_session_term.is_locked %}
+            <span class="status-pill status-pill--locked">Locked</span>
+          {% else %}
+            <span class="status-pill status-pill--draft">Open</span>
+          {% endif %}
+        </p>
+      {% else %}
+        <p>No active session-term is available for teacher result entry.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card-grid">
+    <article class="card">
+      <h2 class="card__title">Assigned Classes</h2>
+      <p class="metric">{{ assigned_classes|length }}</p>
+      <p class="hint">Use the classes page to inspect your access scope.</p>
+      <a class="btn btn--primary" href="{{ url_for('teacher.classes') }}">View Classes</a>
+    </article>
+    <article class="card">
+      <h2 class="card__title">Results</h2>
+      <p class="hint">Enter results one subject at a time with full class/stream validation.</p>
+      <a class="btn btn--primary" href="{{ url_for('teacher.upload_results') }}">Manage Results</a>
+    </article>
+    <article class="card">
+      <h2 class="card__title">Students</h2>
+      <p class="hint">View only students inside your assignment scope.</p>
+      <a class="btn btn--primary" href="{{ url_for('teacher.students') }}">View Students</a>
+    </article>
+  </section>
+</main>
+{% endblock %}

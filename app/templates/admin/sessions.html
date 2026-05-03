@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Sessions{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Admin Control</p>
+      <h1>Sessions and Result Windows</h1>
+      <p class="page-copy">Create academic sessions, choose the active session-term, and control the global result-entry lock.</p>
+    </div>
+  </section>
+
+  <section class="two-column-grid">
+    <article class="card">
+      <h2 class="card__title">Create Session</h2>
+      <form class="stack" method="POST" action="{{ url_for('admin.sessions') }}">
+        {{ action_form.hidden_tag() }}
+        <input type="hidden" name="action" value="create_session" />
+        <div class="form-group">
+          <label class="form-label" for="session_name">Session Name</label>
+          <input class="form-input" id="session_name" name="name" placeholder="2026/2027" required />
+        </div>
+        <button class="btn btn--primary" type="submit">Create Session</button>
+      </form>
+    </article>
+
+    <article class="card">
+      <h2 class="card__title">Set Active Session</h2>
+      <form class="stack" method="POST" action="{{ url_for('admin.sessions') }}">
+        {{ action_form.hidden_tag() }}
+        <input type="hidden" name="action" value="set_active_session" />
+        <div class="form-group">
+          <label class="form-label" for="active_session_id">Session</label>
+          <select class="form-input" id="active_session_id" name="session_id" required>
+            <option value="">Select session</option>
+            {% for session in sessions %}
+              <option value="{{ session.id }}">{{ session.name }}{% if session.is_active %} (Active){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn--primary" type="submit">Activate Session</button>
+      </form>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2 class="card__title">Session Terms</h2>
+    <div class="stack">
+      {% for session in sessions %}
+        <article class="structure-card">
+          <h3 class="subheading">{{ session.name }}{% if session.is_active %} <span class="status-pill status-pill--draft">Active Session</span>{% endif %}</h3>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Term</th>
+                  <th>Entry Window</th>
+                  <th>Global Lock</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for session_term in session_terms_by_session.get(session.id, []) %}
+                  <tr>
+                    <td>{{ session_term.term|title }}</td>
+                    <td>
+                      {% if session_term.is_result_entry_active %}
+                        <span class="status-pill status-pill--draft">Active</span>
+                      {% else %}
+                        <span class="status-pill status-pill--empty">Inactive</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if session_term.is_locked %}
+                        <span class="status-pill status-pill--locked">Locked</span>
+                      {% else %}
+                        <span class="status-pill status-pill--draft">Open</span>
+                      {% endif %}
+                    </td>
+                    <td class="actions-row">
+                      <form method="POST" action="{{ url_for('admin.sessions') }}">
+                        {{ action_form.hidden_tag() }}
+                        <input type="hidden" name="action" value="set_active_term" />
+                        <input type="hidden" name="session_term_id" value="{{ session_term.id }}" />
+                        <button class="btn btn--secondary" type="submit">Set Active</button>
+                      </form>
+                      <form method="POST" action="{{ url_for('admin.sessions') }}">
+                        {{ action_form.hidden_tag() }}
+                        <input type="hidden" name="action" value="toggle_global_lock" />
+                        <input type="hidden" name="session_term_id" value="{{ session_term.id }}" />
+                        <button class="btn btn--secondary" type="submit">
+                          {{ "Unlock" if session_term.is_locked else "Lock" }}
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

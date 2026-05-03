@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Assigned Classes{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Teacher Scope</p>
+      <h1>Your Assigned Classes</h1>
+      <p class="page-copy">You can only view classes and streams listed here.</p>
+    </div>
+    <a class="btn btn--primary" href="{{ url_for('teacher.upload_results') }}">Manage Results</a>
+  </section>
+
+  <section class="stack">
+    {% for item in class_scopes %}
+      <article class="card">
+        <h2 class="card__title">{{ item.class.name }}</h2>
+        <p><strong>Level:</strong> {{ item.class.level|title }}</p>
+        <p><strong>Show Position:</strong> {{ "Yes" if item.class.show_position else "No" }}</p>
+        {% if item.has_stream_scope %}
+          <p><strong>Allowed Streams:</strong>
+            {% if item.streams %}
+              {{ item.streams | map(attribute='name') | join(', ') }}
+            {% else %}
+              None assigned
+            {% endif %}
+          </p>
+        {% else %}
+          <p><strong>Access Scope:</strong> Full class</p>
+        {% endif %}
+      </article>
+    {% else %}
+      <article class="empty-state">
+        <h2>No classes assigned</h2>
+        <p>Your teacher account does not currently have any class assignments.</p>
+      </article>
+    {% endfor %}
+  </section>
+</main>
+{% endblock %}

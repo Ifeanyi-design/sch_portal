@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Students{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Admin Control</p>
+      <h1>Students</h1>
+      <p class="page-copy">Create students and assign secondary students to their stream.</p>
+    </div>
+  </section>
+
+  <section class="two-column-grid">
+    <article class="card">
+      <h2 class="card__title">Create Student</h2>
+      <form class="stack" method="POST" action="{{ url_for('admin.students') }}">
+        {{ action_form.hidden_tag() }}
+        <input type="hidden" name="action" value="create_student" />
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="first_name">First Name</label>
+            <input class="form-input" id="first_name" name="first_name" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="last_name">Last Name</label>
+            <input class="form-input" id="last_name" name="last_name" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <input class="form-input" id="email" name="email" type="email" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <input class="form-input" id="password" name="password" type="password" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="admission_year">Admission Year</label>
+            <input class="form-input" id="admission_year" name="admission_year" type="number" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="class_id">Class</label>
+            <select class="form-input" id="class_id" name="class_id" required>
+              <option value="">Select class</option>
+              {% for class_ in classes %}
+                <option value="{{ class_.id }}">{{ class_.name }} ({{ class_.level|title }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label" for="stream_id">Stream</label>
+            <select class="form-input" id="stream_id" name="stream_id">
+              <option value="">No stream</option>
+              {% for stream in streams %}
+                <option value="{{ stream.id }}">{{ stream.class_.name }} - {{ stream.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <button class="btn btn--primary" type="submit">Create Student</button>
+      </form>
+    </article>
+
+    <article class="card">
+      <h2 class="card__title">Assign Student Stream</h2>
+      <form class="stack" method="POST" action="{{ url_for('admin.students') }}">
+        {{ action_form.hidden_tag() }}
+        <input type="hidden" name="action" value="assign_student_stream" />
+        <div class="form-group">
+          <label class="form-label" for="student_id">Student</label>
+          <select class="form-input" id="student_id" name="student_id" required>
+            <option value="">Select student</option>
+            {% for student in students if student.class_.level == 'secondary' %}
+              <option value="{{ student.id }}">{{ student.full_name }} ({{ student.class_.name }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="assign_stream_id">Stream</label>
+          <select class="form-input" id="assign_stream_id" name="stream_id" required>
+            <option value="">Select stream</option>
+            {% for stream in streams %}
+              <option value="{{ stream.id }}">{{ stream.class_.name }} - {{ stream.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn--primary" type="submit">Save Stream Assignment</button>
+      </form>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2 class="card__title">Student Directory</h2>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Student Code</th>
+            <th>Name</th>
+            <th>Class</th>
+            <th>Stream</th>
+            <th>Login Username</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+            <tr>
+              <td>{{ student.student_code }}</td>
+              <td>{{ student.full_name }}</td>
+              <td>{{ student.class_.name }}</td>
+              <td>{{ student.stream.name if student.stream else "-" }}</td>
+              <td>{{ student.user.username }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}

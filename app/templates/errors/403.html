@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Forbidden{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="empty-state">
+    <h1>403</h1>
+    <p>You do not have permission to access that page or result scope.</p>
+    <a class="btn btn--primary" href="{{ url_for('auth.login') }}">Back to Login</a>
+  </section>
+</main>
+{% endblock %}

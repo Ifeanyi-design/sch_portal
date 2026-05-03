@@ -1,24 +1,30 @@
-"""
-models/subject.py — Subject model.
-
-A subject belongs to a specific class (e.g. "Mathematics" in "Primary 3").
-"""
+"""Reusable subject model."""
 
 from app.extensions import db
 
 
 class Subject(db.Model):
-    """A subject taught in a particular class."""
+    """Academic subject such as Mathematics or Chemistry."""
 
     __tablename__ = "subjects"
 
-    id       = db.Column(db.Integer, primary_key=True)
-    name     = db.Column(db.String(100), nullable=False)
-    class_id = db.Column(db.Integer, db.ForeignKey("classes.id"), nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
 
-    # Relationships
-    class_  = db.relationship("Class",  back_populates="subjects")
+    class_assignments = db.relationship(
+        "ClassSubject",
+        back_populates="subject",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+    stream_assignments = db.relationship(
+        "StreamSubject",
+        back_populates="subject",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
     results = db.relationship("Result", back_populates="subject", lazy="dynamic")
 
     def __repr__(self) -> str:
-        return f"<Subject {self.name!r} (class_id={self.class_id})>"
+        return f"<Subject name={self.name!r}>"

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Admin Control</p>
+      <h1>Academic Control Center</h1>
+      <p class="page-copy">Manage the school structure, assignment scope, result locking, and academic ranking rules from one place.</p>
+    </div>
+    <div class="card">
+      <h2 class="card__title">Active Result Window</h2>
+      {% if active_session_term %}
+        <p><strong>Session:</strong> {{ active_session_term.session.name }}</p>
+        <p><strong>Term:</strong> {{ active_session_term.term|title }}</p>
+        <p><strong>Global Lock:</strong>
+          {% if active_session_term.is_locked %}
+            <span class="status-pill status-pill--locked">Locked</span>
+          {% else %}
+            <span class="status-pill status-pill--draft">Open</span>
+          {% endif %}
+        </p>
+      {% else %}
+        <p>No active session-term has been selected yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card-grid">
+    <article class="card">
+      <h2 class="card__title">Teachers</h2>
+      <p class="metric">{{ summary.teachers }}</p>
+      <a class="btn btn--primary" href="{{ url_for('admin.teachers') }}">Manage Teachers</a>
+    </article>
+    <article class="card">
+      <h2 class="card__title">Students</h2>
+      <p class="metric">{{ summary.students }}</p>
+      <a class="btn btn--primary" href="{{ url_for('admin.students') }}">Manage Students</a>
+    </article>
+    <article class="card">
+      <h2 class="card__title">Classes & Streams</h2>
+      <p class="metric">{{ summary.classes }}</p>
+      <a class="btn btn--primary" href="{{ url_for('admin.classes') }}">Manage Structure</a>
+    </article>
+    <article class="card">
+      <h2 class="card__title">Subjects</h2>
+      <p class="metric">{{ summary.subjects }}</p>
+      <a class="btn btn--primary" href="{{ url_for('admin.classes') }}">Manage Subjects</a>
+    </article>
+    <article class="card">
+      <h2 class="card__title">Sessions</h2>
+      <p class="metric">{{ summary.results }}</p>
+      <a class="btn btn--primary" href="{{ url_for('admin.sessions') }}">Manage Sessions</a>
+    </article>
+    <article class="card">
+      <h2 class="card__title">Results & Ranking</h2>
+      <p class="hint">Lock or unlock class results, override rows, and recalculate position previews.</p>
+      <a class="btn btn--primary" href="{{ url_for('admin.results') }}">Open Result Control</a>
+    </article>
+  </section>
+</main>
+{% endblock %}

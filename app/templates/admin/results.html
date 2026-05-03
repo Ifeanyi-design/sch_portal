@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Result Control{% endblock %}
+
+{% block body %}
+<main class="page-shell">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Admin Control</p>
+      <h1>Results and Position Control</h1>
+      <p class="page-copy">Override result rows, lock or unlock class results, and recalculate positions using only offered subjects.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <form class="filters" method="GET" action="{{ url_for('admin.results') }}">
+      <div class="filter-group">
+        <label for="class_id">Class</label>
+        <select class="form-input" id="class_id" name="class_id">
+          <option value="">Select class</option>
+          {% for class_ in classes %}
+            <option value="{{ class_.id }}" {% if selected_class and selected_class.id == class_.id %}selected{% endif %}>{{ class_.name }} ({{ class_.level|title }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="stream_id">Stream</label>
+        <select class="form-input" id="stream_id" name="stream_id">
+          <option value="">All or none</option>
+          {% for stream in available_streams %}
+            <option value="{{ stream.id }}" {% if selected_stream and selected_stream.id == stream.id %}selected{% endif %}>{{ stream.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="session_id">Session</label>
+        <select class="form-input" id="session_id" name="session_id">
+          <option value="">Select session</option>
+          {% for session in sessions %}
+            <option value="{{ session.id }}" {% if selected_session and selected_session.id == session.id %}selected{% endif %}>{{ session.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="term">Term</label>
+        <select class="form-input" id="term" name="term">
+          <option value="">Select term</option>
+          {% for term in terms %}
+            <option value="{{ term }}" {% if selected_term == term %}selected{% endif %}>{{ term|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="actions-row">
+        <button class="btn btn--primary" type="submit">Load Results</button>
+      </div>
+    </form>
+  </section>
+
+  {% if selected_class and selected_session and selected_term %}
+    <section class="card">
+      <div class="section-row">
+        <div>
+          <h2 class="card__title">Class Result Control</h2>
+          <p class="hint">{{ selected_class.name }} / {{ selected_session.name }} / {{ selected_term|title }} Term</p>
+          <p class="hint">Locking here affects all score-mode results for the selected class and session-term.</p>
+        </div>
+        <div class="actions-row">
+          <form method="POST" action="{{ url_for('admin.results') }}">
+            {{ action_form.hidden_tag() }}
+            <input type="hidden" name="action" value="toggle_class_lock" />
+            <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
+            <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
+            <input type="hidden" name="term" value="{{ selected_term }}" />
+            <input type="hidden" name="lock_action" value="lock" />
+            <button class="btn btn--secondary" type="submit">Lock Class Results</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin.results') }}">
+            {{ action_form.hidden_tag() }}
+            <input type="hidden" name="action" value="toggle_class_lock" />
+            <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
+            <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
+            <input type="hidden" name="term" value="{{ selected_term }}" />
+            <input type="hidden" name="lock_action" value="unlock" />
+            <button class="btn btn--secondary" type="submit">Unlock to Draft</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin.results') }}">
+            {{ action_form.hidden_tag() }}
+            <input type="hidden" name="action" value="recalculate_positions" />
+            <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
+            <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
+            <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
+            <input type="hidden" name="term" value="{{ selected_term }}" />
+            <button class="btn btn--primary" type="submit">Recalculate Positions</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-row">
+        <div>
+          <h2 class="card__title">Position Preview</h2>
+          <p class="hint">Rankings include only score-mode results where <code>is_offered = true</code>.</p>
+          {% if not selected_class.show_position %}
+            <p class="hint">Student-facing position display is currently hidden for this class, but the admin preview remains available.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if selected_class.level == 'nursery' %}
+        <p class="hint">Nursery classes do not use numeric position ranking under the project specification.</p>
+      {% elif position_boards %}
+        <div class="stack">
+          {% for board in position_boards %}
+            <article class="nested-panel">
+              <h3 class="nested-panel__title">{{ board.label }}</h3>
+              {% if board.rows %}
+                <div class="table-scroll">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Position</th>
+                        <th>Student</th>
+                        <th>Total Score</th>
+                        <th>Subjects Taken</th>
+                        <th>A+</th>
+                        <th>A</th>
+                        <th>Average</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in board.rows %}
+                        <tr>
+                          <td>{{ row.position }}</td>
+                          <td>{{ row.student.full_name }}</td>
+                          <td>{{ "%.2f"|format(row.total_score) }}</td>
+                          <td>{{ row.subjects_taken }}</td>
+                          <td>{{ row.a_plus_count }}</td>
+                          <td>{{ row.a_count }}</td>
+                          <td>{{ "%.2f"|format(row.average_score) }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="hint">No offered score results are available for this ranking scope.</p>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="hint">No ranking data is available for the selected scope yet.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2 class="card__title">Result Rows</h2>
+      {% if results %}
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Subject</th>
+                <th>Offered</th>
+                <th>CA</th>
+                <th>Exam</th>
+                <th>Total</th>
+                <th>Grade</th>
+                <th>Status</th>
+                <th>Override</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for result in results %}
+                <tr>
+                  <td>{{ result.student.full_name }}</td>
+                  <td>{{ result.subject.name }}</td>
+                  <td>{{ "Yes" if result.is_offered else "No" }}</td>
+                  <td>{{ result.ca_score if result.ca_score is not none else "-" }}</td>
+                  <td>{{ result.exam_score if result.exam_score is not none else "-" }}</td>
+                  <td>{{ result.total_score if result.total_score is not none else "-" }}</td>
+                  <td>{{ result.grade if result.grade else "-" }}</td>
+                  <td><span class="status-pill status-pill--{{ result.result_status }}">{{ result.result_status|title }}</span></td>
+                  <td>
+                    <details class="details-panel">
+                      <summary>Edit</summary>
+                      <form class="stack details-panel__body" method="POST" action="{{ url_for('admin.results') }}">
+                        {{ action_form.hidden_tag() }}
+                        <input type="hidden" name="action" value="override_result" />
+                        <input type="hidden" name="result_id" value="{{ result.id }}" />
+                        <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
+                        <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
+                        <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
+                        <input type="hidden" name="term" value="{{ selected_term }}" />
+                        <label class="checkbox-inline">
+                          <input type="checkbox" name="is_offered" {% if result.is_offered %}checked{% endif %} />
+                          <span>Subject offered</span>
+                        </label>
+                        <input class="form-input" name="ca_score" type="number" min="0" max="40" step="0.01" value="{{ result.ca_score if result.ca_score is not none else '' }}" placeholder="CA score" />
+                        <input class="form-input" name="exam_score" type="number" min="0" max="60" step="0.01" value="{{ result.exam_score if result.exam_score is not none else '' }}" placeholder="Exam score" />
+                        <input class="form-input" name="remark" value="{{ result.remark or '' }}" placeholder="Remark" />
+                        <select class="form-input" name="result_status" required>
+                          <option value="draft" {% if result.result_status == 'draft' %}selected{% endif %}>Draft</option>
+                          <option value="submitted" {% if result.result_status == 'submitted' %}selected{% endif %}>Submitted</option>
+                          <option value="locked" {% if result.result_status == 'locked' %}selected{% endif %}>Locked</option>
+                        </select>
+                        <textarea class="form-input textarea-input" name="override_reason" placeholder="Override reason" required></textarea>
+                        <button class="btn btn--primary" type="submit">Save Override</button>
+                      </form>
+                    </details>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="hint">No results match the selected filters.</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <section class="empty-state">
+      <h2>Select a Result Scope</h2>
+      <p>Choose a class, session, and term to manage results and view rankings.</p>
+    </section>
+  {% endif %}
+</main>
+{% endblock %}
