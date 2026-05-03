@@ -8,58 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'],
-            display: ['Plus Jakarta Sans', 'IBM Plex Sans', 'sans-serif'],
-          },
-          colors: {
-            brand: {
-              50: '#eef6ff',
-              100: '#d8e9ff',
-              200: '#b9d7ff',
-              300: '#8ec0ff',
-              400: '#5ca0fb',
-              500: '#377fe8',
-              600: '#2564c9',
-              700: '#1f4fa2',
-              800: '#1f457f',
-              900: '#213e67',
-            },
-            slateink: '#0f172a',
-            mist: '#f7f9fc',
-            sage: '#e8f4ef',
-            sand: '#f8f3ea',
-          },
-          boxShadow: {
-            soft: '0 18px 40px -24px rgba(15, 23, 42, 0.22)',
-          },
-          backgroundImage: {
-            'mesh-glow': 'radial-gradient(circle at top left, rgba(55, 127, 232, 0.16), transparent 35%), radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.12), transparent 30%)',
-          },
-        },
-      },
-    };
-  </script>
-  <style>
-    body {
-      background:
-        radial-gradient(circle at top right, rgba(55, 127, 232, 0.08), transparent 28rem),
-        linear-gradient(180deg, #f8fbff 0%, #f5f7fb 100%);
-    }
-
-    ::selection {
-      background: rgba(55, 127, 232, 0.18);
-    }
-
-    [x-cloak] {
-      display: none !important;
-    }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}" />
   {% block extra_head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %} min-h-screen font-sans text-slate-800 antialiased">
@@ -79,7 +28,7 @@
                 {% endif %}
               ">
                 {% if category == 'success' %}
-                  ✓
+                  OK
                 {% elif category == 'danger' %}
                   !
                 {% else %}
@@ -91,7 +40,7 @@
               </div>
               <button type="button" class="text-slate-400 transition hover:text-slate-700" data-dismiss-alert>
                 <span class="sr-only">Dismiss</span>
-                ×
+                x
               </button>
             </div>
           </div>

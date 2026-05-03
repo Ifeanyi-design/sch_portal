@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeButtons = document.querySelectorAll("[data-sidebar-close]");
   const dismissButtons = document.querySelectorAll("[data-dismiss-alert]");
   const passwordToggles = document.querySelectorAll("[data-password-toggle]");
+  const portalRoot = document.querySelector("[data-login-portal]");
 
   const closeSidebar = () => {
     if (!sidebar || !overlay) return;
@@ -48,4 +49,61 @@ document.addEventListener("DOMContentLoaded", () => {
       button.textContent = showing ? "Show" : "Hide";
     });
   });
+
+  if (portalRoot) {
+    const hiddenInput = portalRoot.querySelector("[data-portal-input]");
+    const usernameInput = document.getElementById("username");
+    const helpText = portalRoot.querySelector("[data-login-help]");
+    const loginIdLabel = portalRoot.querySelector("[data-login-id-label]");
+    const submitButton = portalRoot.querySelector("button[type='submit']");
+    const tabs = portalRoot.querySelectorAll("[data-portal-tab]");
+
+    const applyPortalState = (portal) => {
+      if (!hiddenInput) return;
+
+      hiddenInput.value = portal;
+
+      if (usernameInput) {
+        usernameInput.placeholder =
+          portal === "student"
+            ? "Enter your student ID or username"
+            : "Enter your username or email";
+      }
+
+      if (helpText) {
+        helpText.textContent =
+          portal === "student"
+            ? "Students should sign in with their student ID or assigned username."
+            : "Staff should sign in with their username or email address.";
+      }
+
+      if (loginIdLabel) {
+        loginIdLabel.textContent =
+          portal === "student" ? "Student ID or Username" : "Staff Username or Email";
+      }
+
+      if (submitButton) {
+        submitButton.textContent =
+          portal === "student" ? "Student Sign In" : "Staff Sign In";
+      }
+
+      tabs.forEach((tab) => {
+        const active = tab.dataset.portalTab === portal;
+        tab.classList.toggle("bg-white", active);
+        tab.classList.toggle("text-brand-700", active);
+        tab.classList.toggle("shadow-sm", active);
+        tab.classList.toggle("ring-1", active);
+        tab.classList.toggle("ring-brand-100", active);
+        tab.classList.toggle("text-slate-500", !active);
+      });
+    };
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        applyPortalState(tab.dataset.portalTab || "student");
+      });
+    });
+
+    applyPortalState(hiddenInput?.value || "student");
+  }
 });

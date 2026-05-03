@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background:
+      radial-gradient(circle at top right, rgba(55, 127, 232, 0.08), transparent 28rem),
+      linear-gradient(180deg, #f8fbff 0%, #f5f7fb 100%);
+  }
+
+  ::selection {
+    background: rgba(55, 127, 232, 0.18);
+  }
+}
+
+@layer utilities {
+  [x-cloak] {
+    display: none !important;
+  }
+}

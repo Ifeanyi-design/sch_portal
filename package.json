@@ -1,0 +1,12 @@
+{
+  "name": "sams-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./app/static/src/tailwind.css -o ./app/static/css/tailwind.css --minify",
+    "watch:css": "tailwindcss -i ./app/static/src/tailwind.css -o ./app/static/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

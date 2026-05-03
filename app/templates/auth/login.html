@@ -3,10 +3,11 @@
 {% block title %}Sign In{% endblock %}
 
 {% block body %}
+{% set is_student_portal = selected_portal == student_portal %}
 <main class="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-  <div class="mx-auto grid min-h-[calc(100vh-3rem)] max-w-7xl overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-soft backdrop-blur lg:grid-cols-[1.15fr_0.85fr]">
+  <div class="mx-auto grid min-h-[calc(100vh-3rem)] max-w-7xl overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-soft backdrop-blur lg:grid-cols-[1.08fr_0.92fr]">
     <section class="relative hidden overflow-hidden bg-slateink px-10 py-12 text-white lg:block">
-      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(96,165,250,0.35),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(34,197,94,0.14),transparent_28%)]"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(96,165,250,0.32),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(34,197,94,0.14),transparent_28%)]"></div>
       <div class="relative flex h-full flex-col justify-between">
         <div>
           <div class="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/80">
@@ -14,35 +15,35 @@
             Secure school portal
           </div>
           <h1 class="mt-8 max-w-xl font-display text-5xl font-extrabold leading-[1.05]">
-            Academic records, classroom control, and report delivery in one calm portal.
+            One portal for school control, result entry, and report access.
           </h1>
           <p class="mt-5 max-w-xl text-base leading-7 text-white/72">
-            The login experience takes cues from modern institutional portals: clear hierarchy, reassuring structure, and a focused sign-in flow without clutter.
+            The sign-in flow now separates student access from staff access so each person enters through the right portal from the first step.
           </p>
         </div>
 
         <div class="grid gap-4 md:grid-cols-3">
           <article class="rounded-3xl border border-white/10 bg-white/8 p-5 backdrop-blur">
             <p class="text-sm text-white/60">Admin workspace</p>
-            <p class="mt-3 font-display text-3xl font-bold">All systems</p>
-            <p class="mt-2 text-sm text-white/70">Classes, streams, locking, ranking, and academic setup.</p>
+            <p class="mt-3 font-display text-3xl font-bold">Academic control</p>
+            <p class="mt-2 text-sm text-white/70">Classes, streams, sessions, result locking, and overrides.</p>
           </article>
           <article class="rounded-3xl border border-white/10 bg-white/8 p-5 backdrop-blur">
             <p class="text-sm text-white/60">Teacher workflow</p>
-            <p class="mt-3 font-display text-3xl font-bold">Fast entry</p>
-            <p class="mt-2 text-sm text-white/70">Scoped result sheets and CSV upload by class and stream.</p>
+            <p class="mt-3 font-display text-3xl font-bold">Scoped entry</p>
+            <p class="mt-2 text-sm text-white/70">Assigned classes, stream-aware sheets, and CSV upload.</p>
           </article>
           <article class="rounded-3xl border border-white/10 bg-white/8 p-5 backdrop-blur">
             <p class="text-sm text-white/60">Student access</p>
-            <p class="mt-3 font-display text-3xl font-bold">Clean reports</p>
-            <p class="mt-2 text-sm text-white/70">Printable result cards with percentage and position.</p>
+            <p class="mt-3 font-display text-3xl font-bold">Clear reports</p>
+            <p class="mt-2 text-sm text-white/70">Printable result cards with percentage and position when enabled.</p>
           </article>
         </div>
       </div>
     </section>
 
     <section class="flex items-center justify-center bg-white px-6 py-10 sm:px-10">
-      <div class="w-full max-w-md">
+      <div class="w-full max-w-md" data-login-portal>
         <div class="mb-8">
           <a href="{{ url_for('auth.login') }}" class="inline-flex items-center gap-3">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 font-display text-lg font-bold text-white shadow-soft">SA</div>
@@ -53,17 +54,49 @@
           </a>
           <div class="mt-10">
             <p class="text-sm uppercase tracking-[0.22em] text-brand-600">Welcome back</p>
-            <h2 class="mt-3 font-display text-4xl font-bold text-slateink">Sign in to continue</h2>
-            <p class="mt-3 text-sm leading-6 text-slate-500">Use the credentials assigned by your school administrator.</p>
+            <h2 class="mt-3 font-display text-4xl font-bold text-slateink">Choose your sign-in portal</h2>
+            <p class="mt-3 text-sm leading-6 text-slate-500" data-login-help>
+              {% if is_student_portal %}
+                Students should sign in with their student ID or assigned username.
+              {% else %}
+                Staff should sign in with their username or email address.
+              {% endif %}
+            </p>
           </div>
         </div>
 
-        <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-5">
+        <div class="mb-8 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-2">
+          <div class="grid grid-cols-2 gap-2">
+            <a
+              href="{{ url_for('auth.login', portal=student_portal) }}"
+              data-portal-tab="{{ student_portal }}"
+              class="inline-flex items-center justify-center rounded-[1.1rem] px-4 py-3 text-sm font-semibold transition {% if is_student_portal %}bg-white text-brand-700 shadow-sm ring-1 ring-brand-100{% else %}text-slate-500 hover:text-slateink{% endif %}"
+            >
+              Student
+            </a>
+            <a
+              href="{{ url_for('auth.login', portal=staff_portal) }}"
+              data-portal-tab="{{ staff_portal }}"
+              class="inline-flex items-center justify-center rounded-[1.1rem] px-4 py-3 text-sm font-semibold transition {% if not is_student_portal %}bg-white text-brand-700 shadow-sm ring-1 ring-brand-100{% else %}text-slate-500 hover:text-slateink{% endif %}"
+            >
+              Staff
+            </a>
+          </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('auth.login', portal=selected_portal) }}" class="space-y-5">
           {{ form.hidden_tag() }}
+          <input type="hidden" name="portal" value="{{ selected_portal }}" data-portal-input />
 
           <div>
-            <label class="mb-2 block text-sm font-semibold text-slate-700" for="username">{{ form.username.label.text }}</label>
-            {{ form.username(id="username", class="block w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-sm shadow-sm focus:border-brand-500 focus:bg-white focus:ring-brand-500", placeholder="Enter your username") }}
+            <label class="mb-2 block text-sm font-semibold text-slate-700" for="username" data-login-id-label>
+              {{ "Student ID or Username" if is_student_portal else "Staff Username or Email" }}
+            </label>
+            {{ form.username(
+              id="username",
+              class="block w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 text-sm shadow-sm focus:border-brand-500 focus:bg-white focus:ring-brand-500",
+              placeholder="Enter your student ID or username" if is_student_portal else "Enter your username or email"
+            ) }}
             {% for error in form.username.errors %}
               <p class="mt-2 text-sm text-rose-600">{{ error }}</p>
             {% endfor %}
@@ -85,14 +118,14 @@
             <span>Keep me signed in on this device</span>
           </label>
 
-          <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-slateink px-4 py-3.5 font-semibold text-white transition hover:bg-brand-700">
-            Sign In
+          <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-brand-600 px-4 py-3.5 font-semibold text-white transition hover:bg-brand-700">
+            {% if is_student_portal %}Student Sign In{% else %}Staff Sign In{% endif %}
           </button>
         </form>
 
         <div class="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-5">
           <p class="text-sm font-semibold text-slateink">Need access help?</p>
-          <p class="mt-2 text-sm leading-6 text-slate-500">If you cannot sign in, contact your school administrator for a password reset or account activation.</p>
+          <p class="mt-2 text-sm leading-6 text-slate-500">If you cannot sign in, contact your school administrator for account activation or a password reset.</p>
         </div>
       </div>
     </section>
