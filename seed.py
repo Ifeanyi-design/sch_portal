@@ -423,25 +423,56 @@ def seed_students(classes: dict[str, Class], streams: dict[str, Stream]) -> list
         ("SSS 3", "Arts", 2),
     ]
 
-    special_students = {
-        1: ("Ifeoma", "Nnaji"),
-        2: ("Daniel", "Adebayo"),
-        3: ("Amaka", "Okafor"),
-    }
-
     seeded_students = []
-    code_counter = 1
+    code_counter = 4
     generated_name_index = 0
+    remaining_counts = {(class_name, stream_name): count for class_name, stream_name, count in student_specs}
+
+    fixed_students = [
+        ("STU-2025-0001", "Ifeoma", "Nnaji", "Nursery 1", None),
+        ("STU-2025-0002", "Daniel", "Adebayo", "Primary 1", None),
+        ("STU-2025-0003", "Amaka", "Okafor", "SSS 1", "Science"),
+    ]
+
+    for student_code, first_name, last_name, class_name, stream_name in fixed_students:
+        user = create_user(
+            username=student_code,
+            full_name=f"{first_name} {last_name}",
+            email=f"{student_code.lower()}@sams.local",
+            role=Role.STUDENT,
+            password="Student@123",
+        )
+        class_ = classes[class_name]
+        stream = streams.get(f"{class_name}:{stream_name}") if stream_name else None
+        student = Student(
+            user_id=user.id,
+            student_code=student_code,
+            first_name=first_name,
+            last_name=last_name,
+            class_id=class_.id,
+            stream_id=stream.id if stream else None,
+            admission_year=2025,
+            level=class_.level,
+            is_active=True,
+        )
+        db.session.add(student)
+        db.session.flush()
+        seeded_students.append(
+            {
+                "user": user,
+                "student": student,
+                "class_name": class_name,
+                "stream_name": stream_name,
+                "cohort_index": len(seeded_students) + 1,
+            }
+        )
+        remaining_counts[(class_name, stream_name)] -= 1
 
     for class_name, stream_name, count in student_specs:
-        for _ in range(count):
-            if code_counter in special_students:
-                first_name, last_name = special_students[code_counter]
-            else:
-                first_name = FIRST_NAMES[generated_name_index % len(FIRST_NAMES)]
-                last_name = LAST_NAMES[(generated_name_index * 3) % len(LAST_NAMES)]
-                generated_name_index += 1
-
+        for _ in range(remaining_counts[(class_name, stream_name)]):
+            first_name = FIRST_NAMES[generated_name_index % len(FIRST_NAMES)]
+            last_name = LAST_NAMES[(generated_name_index * 3) % len(LAST_NAMES)]
+            generated_name_index += 1
             student_code = f"STU-2025-{code_counter:04d}"
             user = create_user(
                 username=student_code,
@@ -473,7 +504,7 @@ def seed_students(classes: dict[str, Class], streams: dict[str, Stream]) -> list
                     "student": student,
                     "class_name": class_name,
                     "stream_name": stream_name,
-                    "cohort_index": code_counter,
+                    "cohort_index": len(seeded_students) + 1,
                 }
             )
             code_counter += 1
