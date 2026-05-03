@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from io import BytesIO
+
+from flask import Blueprint, abort, render_template, request, send_file
 from flask_login import current_user, login_required
 
 from app.models.class_ import Level
@@ -14,6 +16,8 @@ from app.utils.decorators import role_required
 from app.utils.helpers import build_position_rows
 
 student_bp = Blueprint("student", __name__, template_folder="../templates/student")
+
+GRADE_ORDER = ("A+", "A", "B", "C", "D", "E", "F")
 
 
 def _current_student() -> Student:
@@ -139,17 +143,32 @@ def _report_summary(results: list[Result]) -> dict:
     total_score = round(sum(item.total_score for item in offered_score_results), 2)
     subjects_taken = len(offered_score_results)
     percentage = round((total_score / (subjects_taken * 100) * 100), 2) if subjects_taken else 0.0
+    average_score = round((total_score / subjects_taken), 2) if subjects_taken else 0.0
+    grade_counts = {grade: 0 for grade in GRADE_ORDER}
+    for result in offered_score_results:
+        if result.grade in grade_counts:
+            grade_counts[result.grade] += 1
+
+    grade_summary = [
+        {"grade": grade, "count": count}
+        for grade, count in grade_counts.items()
+        if count > 0
+    ]
+    top_grade = next((grade for grade in GRADE_ORDER if grade_counts[grade] > 0), None)
 
     return {
         "total_score": total_score,
         "subjects_taken": subjects_taken,
         "percentage": percentage,
+        "average_score": average_score,
         "has_score_mode": any(item.mode == ResultMode.SCORE for item in results),
         "has_assessment_mode": any(item.mode == ResultMode.ASSESSMENT for item in results),
         "assessment_subjects": len(
             [item for item in results if item.mode == ResultMode.ASSESSMENT and item.is_offered]
         ),
         "remark_count": len([item for item in results if item.remark]),
+        "grade_summary": grade_summary,
+        "top_grade": top_grade,
     }
 
 
@@ -247,3 +266,160 @@ def report_card():
     student = _current_student()
     context = _report_context(student)
     return render_template("student/report_card.html", **context)
+
+
+@student_bp.route("/report-card/pdf")
+@login_required
+@role_required("student")
+def report_card_pdf():
+    """Return the current student's report card as a downloadable PDF."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    student = _current_student()
+    context = _report_context(student)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=15 * mm,
+        rightMargin=15 * mm,
+        topMargin=15 * mm,
+        bottomMargin=15 * mm,
+    )
+    styles = getSampleStyleSheet()
+    story = []
+
+    story.append(Paragraph("School Academic Management System", styles["Title"]))
+    story.append(Paragraph("Student Report Card", styles["Heading2"]))
+    selected_period = context["selected_period"]["label"] if context["selected_period"] else "No period selected"
+    story.append(Paragraph(f"Period: {selected_period}", styles["Normal"]))
+    story.append(Spacer(1, 8))
+
+    student_info = [
+        ["Student", student.full_name],
+        ["Student Code", student.student_code],
+        ["Class", student.class_.name],
+        ["Stream", student.stream.name if student.stream else "N/A"],
+    ]
+    student_table = Table(student_info, colWidths=[45 * mm, 120 * mm])
+    student_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#eef6ff")),
+                ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#0f172a")),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d6dbe7")),
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                ("PADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    story.append(student_table)
+    story.append(Spacer(1, 10))
+
+    summary = context["summary"]
+    if summary["has_assessment_mode"] and not summary["has_score_mode"]:
+        summary_rows = [
+            ["Assessment Subjects", str(summary["assessment_subjects"])],
+            ["Remarks Available", str(summary["remark_count"])],
+            ["Report Mode", "Assessment"],
+        ]
+    else:
+        summary_rows = [
+            ["Subjects Taken", str(summary["subjects_taken"])],
+            ["Total Score", f"{summary['total_score']:.2f}"],
+            ["Average Score", f"{summary['average_score']:.2f}"],
+            ["Percentage", f"{summary['percentage']:.2f}%"],
+        ]
+        if context["position"]["show_position"]:
+            summary_rows.append(["Position", str(context["position"]["position"] or "-")])
+
+    summary_table = Table(summary_rows, colWidths=[55 * mm, 110 * mm])
+    summary_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#f8fafc")),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d6dbe7")),
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                ("PADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    story.append(summary_table)
+    story.append(Spacer(1, 10))
+
+    if summary["grade_summary"]:
+        story.append(Paragraph("Grade Summary", styles["Heading3"]))
+        grade_rows = [["Grade", "Count"]]
+        grade_rows.extend([[item["grade"], str(item["count"])] for item in summary["grade_summary"]])
+        grade_table = Table(grade_rows, colWidths=[40 * mm, 35 * mm])
+        grade_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2564c9")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d6dbe7")),
+                    ("PADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        story.append(grade_table)
+        story.append(Spacer(1, 10))
+
+    results = context["results"]
+    if summary["has_assessment_mode"] and not summary["has_score_mode"]:
+        headers = ["Subject", "Offered"] + [item["label"] for item in context["assessment_schema_items"]] + ["Remark"]
+        rows = [headers]
+        for result in results:
+            row = [result.subject.name, "Yes" if result.is_offered else "No"]
+            for item in context["assessment_schema_items"]:
+                row.append(
+                    result.assessment_json.get(item["key"], "-")
+                    if result.is_offered and result.assessment_json
+                    else "-"
+                )
+            row.append(result.remark or "-")
+            rows.append(row)
+    else:
+        rows = [["Subject", "CA", "Exam", "Total", "Grade", "Remark"]]
+        for result in results:
+            if not result.is_offered:
+                continue
+            rows.append(
+                [
+                    result.subject.name,
+                    str(result.ca_score if result.ca_score is not None else "-"),
+                    str(result.exam_score if result.exam_score is not None else "-"),
+                    str(result.total_score if result.total_score is not None else "-"),
+                    result.grade or "-",
+                    result.remark or "-",
+                ]
+            )
+
+    result_table = Table(rows, repeatRows=1)
+    result_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d6dbe7")),
+                ("PADDING", (0, 0), (-1, -1), 6),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    story.append(result_table)
+    doc.build(story)
+    buffer.seek(0)
+
+    filename = f"{student.student_code}-{(context['selected_term'] or 'report')}.pdf"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf",
+    )

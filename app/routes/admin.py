@@ -37,6 +37,26 @@ def _split_name(first_name: str, last_name: str) -> str:
     return f"{first_name.strip()} {last_name.strip()}".strip()
 
 
+def _parse_assessment_schema(level: str, raw_keys: str) -> dict | None:
+    """Return a normalized assessment schema payload for nursery classes."""
+    if level != Level.NURSERY:
+        return None
+
+    keys = [key.strip() for key in raw_keys.split(",") if key.strip()]
+    if not keys:
+        keys = ["participation", "skill_level", "observation"]
+
+    schema = {}
+    for key in keys:
+        if key in {"attendance"}:
+            schema[key] = "integer"
+        elif key in {"participation", "skill_level", "behavior"}:
+            schema[key] = "rating"
+        else:
+            schema[key] = "text"
+    return schema
+
+
 def _active_session_term() -> SessionTerm | None:
     """Return the currently active session-term for result entry."""
     return (
@@ -95,6 +115,17 @@ def _stream_subjects_map() -> dict[int, list[StreamSubject]]:
     return grouped
 
 
+def _assessment_schema_items(class_: Class | None) -> list[dict]:
+    """Return nursery assessment schema entries in display order."""
+    if class_ is None or class_.level != Level.NURSERY or not class_.assessment_schema:
+        return []
+
+    return [
+        {"key": key, "label": key.replace("_", " ").title(), "type": value}
+        for key, value in class_.assessment_schema.items()
+    ]
+
+
 def _teacher_assignments_map() -> dict[int, list[ClassTeacherMap]]:
     """Return teacher assignments grouped by teacher."""
     grouped = {}
@@ -109,7 +140,6 @@ def _student_results_query(class_id: int | None, stream_id: int | None, session_
         Result.query.join(Student)
         .join(Subject)
         .join(Session)
-        .filter(Result.mode == ResultMode.SCORE)
     )
     if class_id:
         query = query.filter(Result.class_id == class_id)
@@ -225,6 +255,50 @@ def _create_teacher() -> None:
     )
 
 
+def _update_teacher() -> None:
+    """Update one teacher profile and login details."""
+    teacher = Teacher.query.get_or_404(request.form.get("teacher_id", type=int))
+    first_name = request.form.get("first_name", "").strip()
+    last_name = request.form.get("last_name", "").strip()
+    username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    staff_id = request.form.get("staff_id", "").strip() or None
+    phone = request.form.get("phone", "").strip() or None
+
+    if not all([first_name, last_name, username, email]):
+        raise ValueError("Teacher first name, last name, username, and email are required.")
+
+    duplicate_user = User.query.filter(
+        ((User.username == username) | (User.email == email)),
+        User.id != teacher.user_id,
+    ).first()
+    if duplicate_user:
+        raise ValueError("Another user already uses that username or email.")
+
+    if staff_id:
+        duplicate_staff = Teacher.query.filter(
+            Teacher.staff_id == staff_id,
+            Teacher.id != teacher.id,
+        ).first()
+        if duplicate_staff:
+            raise ValueError("Another teacher already uses that staff ID.")
+
+    teacher.first_name = first_name
+    teacher.last_name = last_name
+    teacher.staff_id = staff_id
+    teacher.phone = phone
+    teacher.user.username = username
+    teacher.user.email = email
+    teacher.user.full_name = _split_name(first_name, last_name)
+
+
+def _toggle_teacher_active() -> None:
+    """Activate or deactivate one teacher account."""
+    teacher = Teacher.query.get_or_404(request.form.get("teacher_id", type=int))
+    teacher.is_active = not teacher.is_active
+    teacher.user.is_active = teacher.is_active
+
+
 def _assign_teacher() -> None:
     """Assign a teacher to a class or class-stream scope."""
     teacher_id = request.form.get("teacher_id", type=int)
@@ -309,6 +383,50 @@ def _create_student() -> None:
     )
 
 
+def _update_student() -> None:
+    """Update one student profile and account details."""
+    student = Student.query.get_or_404(request.form.get("student_id", type=int))
+    first_name = request.form.get("first_name", "").strip()
+    last_name = request.form.get("last_name", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    admission_year = request.form.get("admission_year", type=int)
+    class_id = request.form.get("class_id", type=int)
+    stream_id = request.form.get("stream_id", type=int)
+
+    if not all([first_name, last_name, email, admission_year, class_id]):
+        raise ValueError("Student first name, last name, email, class, and admission year are required.")
+
+    duplicate_email = User.query.filter(User.email == email, User.id != student.user_id).first()
+    if duplicate_email:
+        raise ValueError("Another user already uses that email address.")
+
+    class_ = Class.query.get_or_404(class_id)
+    if class_.level != Level.SECONDARY:
+        stream_id = None
+    elif class_.streams and stream_id is None:
+        raise ValueError("Secondary students must be assigned to a stream when the class uses streams.")
+
+    stream = Stream.query.get(stream_id) if stream_id else None
+    if stream is not None and stream.class_id != class_.id:
+        raise ValueError("The selected stream does not belong to the chosen class.")
+
+    student.first_name = first_name
+    student.last_name = last_name
+    student.admission_year = admission_year
+    student.class_id = class_.id
+    student.stream_id = stream_id
+    student.level = class_.level
+    student.user.email = email
+    student.user.full_name = _split_name(first_name, last_name)
+
+
+def _toggle_student_active() -> None:
+    """Activate or deactivate one student account."""
+    student = Student.query.get_or_404(request.form.get("student_id", type=int))
+    student.is_active = not student.is_active
+    student.user.is_active = student.is_active
+
+
 def _assign_student_stream() -> None:
     """Assign or update a student's stream for secondary classes."""
     student_id = request.form.get("student_id", type=int)
@@ -338,12 +456,7 @@ def _create_class() -> None:
     if level not in Level.ALL:
         raise ValueError("Invalid class level.")
 
-    assessment_schema = None
-    if level == Level.NURSERY:
-        keys = [key.strip() for key in schema_keys.split(",") if key.strip()]
-        if not keys:
-            keys = ["behavior", "attendance", "participation", "teacher_comment"]
-        assessment_schema = {key: "text" for key in keys}
+    assessment_schema = _parse_assessment_schema(level, schema_keys)
 
     if Class.query.filter_by(session_id=session_id, name=name, arm=arm).first():
         raise ValueError("That class already exists for the selected session.")
@@ -359,6 +472,56 @@ def _create_class() -> None:
             assessment_schema=assessment_schema,
         )
     )
+
+
+def _update_class() -> None:
+    """Update one class record."""
+    class_ = Class.query.get_or_404(request.form.get("class_id", type=int))
+    name = request.form.get("name", "").strip()
+    level = request.form.get("level", "").strip()
+    session_id = request.form.get("session_id", type=int)
+    arm = request.form.get("arm", "").strip() or None
+    show_position = _checkbox("show_position")
+    schema_keys = request.form.get("assessment_schema_keys", "").strip()
+
+    if not all([name, level, session_id]):
+        raise ValueError("Class name, level, and session are required.")
+    if level not in Level.ALL:
+        raise ValueError("Invalid class level.")
+
+    if level != class_.level:
+        has_linked_data = any(
+            [
+                class_.students.count() > 0,
+                class_.results.count() > 0,
+                len(class_.streams) > 0,
+                class_.teacher_assignments.count() > 0,
+            ]
+        )
+        if has_linked_data:
+            raise ValueError("Class level cannot be changed after students, streams, assignments, or results exist.")
+
+    duplicate = Class.query.filter(
+        Class.session_id == session_id,
+        Class.name == name,
+        Class.arm == arm,
+        Class.id != class_.id,
+    ).first()
+    if duplicate:
+        raise ValueError("Another class already uses that name, arm, and session combination.")
+
+    class_.name = name
+    class_.level = level
+    class_.session_id = session_id
+    class_.arm = arm
+    class_.show_position = show_position
+    class_.assessment_schema = _parse_assessment_schema(level, schema_keys)
+
+
+def _toggle_class_active() -> None:
+    """Activate or deactivate one class."""
+    class_ = Class.query.get_or_404(request.form.get("class_id", type=int))
+    class_.is_active = not class_.is_active
 
 
 def _toggle_show_position() -> None:
@@ -383,6 +546,45 @@ def _create_stream() -> None:
     db.session.add(Stream(class_id=class_.id, name=name, is_active=True))
 
 
+def _update_stream() -> None:
+    """Update one secondary stream."""
+    stream = Stream.query.get_or_404(request.form.get("stream_id", type=int))
+    class_id = request.form.get("class_id", type=int)
+    name = request.form.get("name", "").strip()
+    class_ = Class.query.get_or_404(class_id)
+
+    if class_.level != Level.SECONDARY:
+        raise ValueError("Streams can only belong to secondary classes.")
+    if name not in {"Science", "Commercial", "Arts"}:
+        raise ValueError("Stream name must be Science, Commercial, or Arts.")
+
+    if class_id != stream.class_id and any(
+        [
+            stream.students.count() > 0,
+            stream.results.count() > 0,
+            stream.teacher_assignments.count() > 0,
+        ]
+    ):
+        raise ValueError("A stream with linked students, results, or assignments cannot be moved to another class.")
+
+    duplicate = Stream.query.filter(
+        Stream.class_id == class_.id,
+        Stream.name == name,
+        Stream.id != stream.id,
+    ).first()
+    if duplicate:
+        raise ValueError("Another stream with that name already exists for the selected class.")
+
+    stream.class_id = class_.id
+    stream.name = name
+
+
+def _toggle_stream_active() -> None:
+    """Activate or deactivate one stream."""
+    stream = Stream.query.get_or_404(request.form.get("stream_id", type=int))
+    stream.is_active = not stream.is_active
+
+
 def _create_subject() -> None:
     """Create a global subject."""
     name = request.form.get("name", "").strip()
@@ -391,6 +593,25 @@ def _create_subject() -> None:
     if Subject.query.filter_by(name=name).first():
         raise ValueError("That subject already exists.")
     db.session.add(Subject(name=name, is_active=True))
+
+
+def _update_subject() -> None:
+    """Rename one subject."""
+    subject = Subject.query.get_or_404(request.form.get("subject_id", type=int))
+    name = request.form.get("name", "").strip()
+    if not name:
+        raise ValueError("Subject name is required.")
+
+    duplicate = Subject.query.filter(Subject.name == name, Subject.id != subject.id).first()
+    if duplicate:
+        raise ValueError("Another subject already uses that name.")
+    subject.name = name
+
+
+def _toggle_subject_active() -> None:
+    """Activate or deactivate one subject."""
+    subject = Subject.query.get_or_404(request.form.get("subject_id", type=int))
+    subject.is_active = not subject.is_active
 
 
 def _assign_class_subject() -> None:
@@ -447,6 +668,19 @@ def _create_session() -> None:
         )
 
 
+def _update_session() -> None:
+    """Rename one academic session."""
+    session = Session.query.get_or_404(request.form.get("session_id", type=int))
+    name = request.form.get("name", "").strip()
+    if not name:
+        raise ValueError("Session name is required.")
+
+    duplicate = Session.query.filter(Session.name == name, Session.id != session.id).first()
+    if duplicate:
+        raise ValueError("Another session already uses that name.")
+    session.name = name
+
+
 def _set_active_session() -> None:
     """Mark exactly one session as active."""
     session_id = request.form.get("session_id", type=int)
@@ -470,8 +704,22 @@ def _toggle_global_lock() -> None:
     session_term.is_locked = not session_term.is_locked
 
 
+def _toggle_session_active() -> None:
+    """Activate or deactivate one session record."""
+    session = Session.query.get_or_404(request.form.get("session_id", type=int))
+    if session.is_active:
+        session.is_active = False
+        for session_term in session.session_terms:
+            session_term.is_result_entry_active = False
+        return
+
+    Session.query.update({Session.is_active: False})
+    SessionTerm.query.update({SessionTerm.is_result_entry_active: False})
+    session.is_active = True
+
+
 def _toggle_class_lock() -> None:
-    """Lock or unlock all score results for one class and session-term."""
+    """Lock or unlock all results for one class and session-term."""
     class_id = request.form.get("class_id", type=int)
     session_id = request.form.get("session_id", type=int)
     term = request.form.get("term", "").strip()
@@ -484,10 +732,9 @@ def _toggle_class_lock() -> None:
         class_id=class_id,
         session_id=session_id,
         term=term,
-        mode=ResultMode.SCORE,
     ).all()
     if not results:
-        raise ValueError("No score-mode results exist for that class and session-term.")
+        raise ValueError("No results exist for that class and session-term.")
 
     if lock_action == "lock":
         for result in results:
@@ -516,16 +763,42 @@ def _override_result() -> None:
     result.overridden_by_user_id = current_user.id
     result.overridden_at = datetime.now(timezone.utc)
 
-    if result.is_offered:
-        ca_score = request.form.get("ca_score", "").strip()
-        exam_score = request.form.get("exam_score", "").strip()
-        if ca_score == "" or exam_score == "":
-            raise ValueError("CA and exam scores are required when a result is offered.")
-        result.ca_score = float(ca_score)
-        result.exam_score = float(exam_score)
-    else:
+    if result.mode == ResultMode.ASSESSMENT:
+        class_ = result.class_
+        if class_ is None or class_.level != Level.NURSERY or not class_.assessment_schema:
+            raise ValueError("Nursery assessment overrides require a valid class schema.")
+
+        assessment_json = {}
+        for key in class_.assessment_schema.keys():
+            field_name = f"assessment__{key}"
+            value = request.form.get(field_name, "").strip()
+            if result.is_offered and value == "":
+                raise ValueError(f"{key.replace('_', ' ').title()} is required when the subject is offered.")
+            if class_.assessment_schema[key] == "integer" and value != "":
+                try:
+                    assessment_json[key] = int(value)
+                except ValueError as exc:
+                    raise ValueError(f"{key.replace('_', ' ').title()} must be a whole number.") from exc
+            else:
+                assessment_json[key] = value or None
+
+        result.assessment_json = assessment_json
         result.ca_score = None
         result.exam_score = None
+        result.total_score = None
+        result.grade = None
+    else:
+        if result.is_offered:
+            ca_score = request.form.get("ca_score", "").strip()
+            exam_score = request.form.get("exam_score", "").strip()
+            if ca_score == "" or exam_score == "":
+                raise ValueError("CA and exam scores are required when a result is offered.")
+            result.ca_score = float(ca_score)
+            result.exam_score = float(exam_score)
+        else:
+            result.ca_score = None
+            result.exam_score = None
+        result.assessment_json = None
 
     result.result_status = target_status
     if not result.can_transition_to(target_status, current_user.role):
@@ -563,6 +836,12 @@ def teachers():
             if action == "create_teacher":
                 _create_teacher()
                 message = "Teacher created successfully."
+            elif action == "update_teacher":
+                _update_teacher()
+                message = "Teacher updated successfully."
+            elif action == "toggle_teacher_active":
+                _toggle_teacher_active()
+                message = "Teacher account status updated."
             elif action == "assign_teacher":
                 _assign_teacher()
                 message = "Teacher assignment saved."
@@ -595,6 +874,12 @@ def students():
             if action == "create_student":
                 _create_student()
                 message = "Student created successfully."
+            elif action == "update_student":
+                _update_student()
+                message = "Student updated successfully."
+            elif action == "toggle_student_active":
+                _toggle_student_active()
+                message = "Student account status updated."
             elif action == "assign_student_stream":
                 _assign_student_stream()
                 message = "Student stream assignment updated."
@@ -627,15 +912,33 @@ def classes():
             if action == "create_class":
                 _create_class()
                 message = "Class created successfully."
+            elif action == "update_class":
+                _update_class()
+                message = "Class updated successfully."
+            elif action == "toggle_class_active":
+                _toggle_class_active()
+                message = "Class status updated."
             elif action == "toggle_show_position":
                 _toggle_show_position()
                 message = "Class position visibility updated."
             elif action == "create_stream":
                 _create_stream()
                 message = "Stream created successfully."
+            elif action == "update_stream":
+                _update_stream()
+                message = "Stream updated successfully."
+            elif action == "toggle_stream_active":
+                _toggle_stream_active()
+                message = "Stream status updated."
             elif action == "create_subject":
                 _create_subject()
                 message = "Subject created successfully."
+            elif action == "update_subject":
+                _update_subject()
+                message = "Subject updated successfully."
+            elif action == "toggle_subject_active":
+                _toggle_subject_active()
+                message = "Subject status updated."
             elif action == "assign_class_subject":
                 _assign_class_subject()
                 message = "Subject assigned to class."
@@ -675,6 +978,12 @@ def sessions():
             if action == "create_session":
                 _create_session()
                 message = "Session created successfully."
+            elif action == "update_session":
+                _update_session()
+                message = "Session updated successfully."
+            elif action == "toggle_session_active":
+                _toggle_session_active()
+                message = "Session status updated."
             elif action == "set_active_session":
                 _set_active_session()
                 message = "Active session updated."
@@ -754,6 +1063,7 @@ def results():
         selected_term,
     )
     result_rows = results_query.all() if selected_class and selected_session and selected_term else []
+    assessment_schema_items = _assessment_schema_items(selected_class)
     position_boards = _position_boards(
         selected_class,
         selected_session.id if selected_session else None,
@@ -772,5 +1082,6 @@ def results():
         selected_term=selected_term,
         available_streams=available_streams,
         results=result_rows,
+        assessment_schema_items=assessment_schema_items,
         position_boards=position_boards,
     )

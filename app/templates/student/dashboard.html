@@ -57,6 +57,10 @@
               <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Percentage</p>
               <p class="mt-2 text-2xl font-bold text-slateink">{{ "%.2f"|format(summary.percentage) }}%</p>
             </div>
+            <div class="rounded-2xl bg-slate-50 px-4 py-4">
+              <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Top grade band</p>
+              <p class="mt-2 text-2xl font-bold text-slateink">{{ summary.top_grade or "-" }}</p>
+            </div>
             {% if position.show_position and position.position is not none %}
               <div class="rounded-2xl bg-brand-50 px-4 py-4">
                 <p class="text-xs uppercase tracking-[0.18em] text-brand-600">Position</p>

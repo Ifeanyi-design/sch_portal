@@ -2,7 +2,7 @@
 
 {% block title %}Results{% endblock %}
 {% block page_eyebrow %}Admin Workspace{% endblock %}
-{% block page_title %}Results, Locks, and Position Preview{% endblock %}
+{% block page_title %}Results, Locks, and Review{% endblock %}
 
 {% block shell_content %}
 <div class="space-y-6">
@@ -77,24 +77,28 @@
       <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
         <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Visibility rule</p>
         <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Position display</h2>
-        <p class="mt-3 text-sm text-slate-500">
-          Students will
-          {% if selected_class.show_position %}
-            <span class="font-semibold text-emerald-700">see</span>
-          {% else %}
-            <span class="font-semibold text-slate-700">not see</span>
-          {% endif %}
-          position on their report card for this class.
-        </p>
-        <form method="POST" class="mt-5">
-          {{ action_form.hidden_tag() }}
-          <input type="hidden" name="action" value="recalculate_positions" />
-          <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
-          <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
-          <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
-          <input type="hidden" name="term" value="{{ selected_term }}" />
-          <button class="inline-flex rounded-2xl bg-slateink px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Recalculate positions</button>
-        </form>
+        {% if selected_class.level == 'nursery' %}
+          <p class="mt-3 text-sm text-slate-500">Nursery classes use assessment mode only, so numeric position does not apply here.</p>
+        {% else %}
+          <p class="mt-3 text-sm text-slate-500">
+            Students will
+            {% if selected_class.show_position %}
+              <span class="font-semibold text-emerald-700">see</span>
+            {% else %}
+              <span class="font-semibold text-slate-700">not see</span>
+            {% endif %}
+            position on their report card for this class.
+          </p>
+          <form method="POST" class="mt-5">
+            {{ action_form.hidden_tag() }}
+            <input type="hidden" name="action" value="recalculate_positions" />
+            <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
+            <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
+            <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
+            <input type="hidden" name="term" value="{{ selected_term }}" />
+            <button class="inline-flex rounded-2xl bg-slateink px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Recalculate positions</button>
+          </form>
+        {% endif %}
       </article>
     </section>
 
@@ -166,11 +170,19 @@
               <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
                 <th class="pb-3 pr-4">Student</th>
                 <th class="pb-3 pr-4">Subject</th>
+                <th class="pb-3 pr-4">Mode</th>
                 <th class="pb-3 pr-4">Offered</th>
-                <th class="pb-3 pr-4">CA</th>
-                <th class="pb-3 pr-4">Exam</th>
-                <th class="pb-3 pr-4">Total</th>
-                <th class="pb-3 pr-4">Grade</th>
+                {% if selected_class.level == 'nursery' %}
+                  {% for item in assessment_schema_items %}
+                    <th class="pb-3 pr-4">{{ item.label }}</th>
+                  {% endfor %}
+                  <th class="pb-3 pr-4">Remark</th>
+                {% else %}
+                  <th class="pb-3 pr-4">CA</th>
+                  <th class="pb-3 pr-4">Exam</th>
+                  <th class="pb-3 pr-4">Total</th>
+                  <th class="pb-3 pr-4">Grade</th>
+                {% endif %}
                 <th class="pb-3 pr-4">Status</th>
                 <th class="pb-3">Override</th>
               </tr>
@@ -183,11 +195,25 @@
                     <div class="text-xs text-slate-400">{{ result.student.student_code }}</div>
                   </td>
                   <td class="py-4 pr-4">{{ result.subject.name }}</td>
+                  <td class="py-4 pr-4">{{ result.mode|title }}</td>
                   <td class="py-4 pr-4">{{ "Yes" if result.is_offered else "No" }}</td>
-                  <td class="py-4 pr-4">{{ result.ca_score if result.ca_score is not none else "-" }}</td>
-                  <td class="py-4 pr-4">{{ result.exam_score if result.exam_score is not none else "-" }}</td>
-                  <td class="py-4 pr-4">{{ result.total_score if result.total_score is not none else "-" }}</td>
-                  <td class="py-4 pr-4">{{ result.grade if result.grade else "-" }}</td>
+                  {% if result.mode == 'assessment' %}
+                    {% for item in assessment_schema_items %}
+                      <td class="py-4 pr-4">
+                        {% if result.is_offered %}
+                          {{ result.assessment_json.get(item.key, "-") if result.assessment_json else "-" }}
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                    {% endfor %}
+                    <td class="py-4 pr-4">{{ result.remark or "-" }}</td>
+                  {% else %}
+                    <td class="py-4 pr-4">{{ result.ca_score if result.ca_score is not none else "-" }}</td>
+                    <td class="py-4 pr-4">{{ result.exam_score if result.exam_score is not none else "-" }}</td>
+                    <td class="py-4 pr-4">{{ result.total_score if result.total_score is not none else "-" }}</td>
+                    <td class="py-4 pr-4">{{ result.grade if result.grade else "-" }}</td>
+                  {% endif %}
                   <td class="py-4 pr-4">
                     <span class="rounded-full px-3 py-1 text-xs font-medium
                       {% if result.result_status == 'locked' %}
@@ -202,7 +228,7 @@
                   <td class="py-4">
                     <details class="group">
                       <summary class="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-brand-200 hover:text-brand-700">Edit</summary>
-                      <form method="POST" class="mt-4 w-72 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <form method="POST" class="mt-4 w-80 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         {{ action_form.hidden_tag() }}
                         <input type="hidden" name="action" value="override_result" />
                         <input type="hidden" name="result_id" value="{{ result.id }}" />
@@ -214,9 +240,28 @@
                           <input type="checkbox" name="is_offered" {% if result.is_offered %}checked{% endif %} class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
                           <span>Subject offered</span>
                         </label>
-                        <input name="ca_score" type="number" min="0" max="40" step="0.01" value="{{ result.ca_score if result.ca_score is not none else '' }}" class="w-full rounded-2xl border-slate-200 bg-white" placeholder="CA score" />
-                        <input name="exam_score" type="number" min="0" max="60" step="0.01" value="{{ result.exam_score if result.exam_score is not none else '' }}" class="w-full rounded-2xl border-slate-200 bg-white" placeholder="Exam score" />
-                        <input name="remark" value="{{ result.remark or '' }}" class="w-full rounded-2xl border-slate-200 bg-white" placeholder="Remark" />
+                        {% if result.mode == 'assessment' %}
+                          {% for item in assessment_schema_items %}
+                            {% set current_value = result.assessment_json.get(item.key) if result.assessment_json else '' %}
+                            {% if item.type == 'integer' %}
+                              <input name="assessment__{{ item.key }}" type="number" step="1" value="{{ current_value if current_value is not none else '' }}" class="w-full rounded-2xl border-slate-200 bg-white" placeholder="{{ item.label }}" />
+                            {% elif item.type == 'rating' %}
+                              <select name="assessment__{{ item.key }}" class="w-full rounded-2xl border-slate-200 bg-white">
+                                <option value="">Select {{ item.label }}</option>
+                                {% for option in ['Outstanding', 'Very Good', 'Good', 'Developing', 'Needs Support'] %}
+                                  <option value="{{ option }}" {% if current_value == option %}selected{% endif %}>{{ option }}</option>
+                                {% endfor %}
+                              </select>
+                            {% else %}
+                              <input name="assessment__{{ item.key }}" value="{{ current_value if current_value is not none else '' }}" class="w-full rounded-2xl border-slate-200 bg-white" placeholder="{{ item.label }}" />
+                            {% endif %}
+                          {% endfor %}
+                          <input name="remark" value="{{ result.remark or '' }}" class="w-full rounded-2xl border-slate-200 bg-white" placeholder="Remark" />
+                        {% else %}
+                          <input name="ca_score" type="number" min="0" max="40" step="0.01" value="{{ result.ca_score if result.ca_score is not none else '' }}" class="w-full rounded-2xl border-slate-200 bg-white" placeholder="CA score" />
+                          <input name="exam_score" type="number" min="0" max="60" step="0.01" value="{{ result.exam_score if result.exam_score is not none else '' }}" class="w-full rounded-2xl border-slate-200 bg-white" placeholder="Exam score" />
+                          <input name="remark" value="{{ result.remark or '' }}" class="w-full rounded-2xl border-slate-200 bg-white" placeholder="Remark" />
+                        {% endif %}
                         <select name="result_status" class="w-full rounded-2xl border-slate-200 bg-white" required>
                           <option value="draft" {% if result.result_status == 'draft' %}selected{% endif %}>Draft</option>
                           <option value="submitted" {% if result.result_status == 'submitted' %}selected{% endif %}>Submitted</option>
@@ -239,7 +284,7 @@
   {% else %}
     <section class="rounded-[2rem] border border-dashed border-slate-200 bg-white/75 p-12 text-center shadow-soft">
       <h2 class="font-display text-2xl font-bold text-slateink">Choose a class result scope</h2>
-      <p class="mt-3 text-sm leading-7 text-slate-500">Select a class, session, and term to unlock the class lock controls, row overrides, and position previews.</p>
+      <p class="mt-3 text-sm leading-7 text-slate-500">Select a class, session, and term to unlock the class lock controls, review tools, and row overrides.</p>
     </section>
   {% endif %}
 </div>
