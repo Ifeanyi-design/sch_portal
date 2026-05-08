@@ -14,12 +14,12 @@
           <h2 class="mt-2 font-display text-2xl font-bold text-slateink">{{ item.class.name }}</h2>
         </div>
         <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
-          {% if item.has_stream_scope %}Stream aware{% else %}Full class{% endif %}
+          {% if item.has_stream_scope %}Secondary class{% else %}Full class{% endif %}
         </span>
       </div>
       <p class="mt-4 text-sm leading-7 text-slate-500">
         {% if item.has_stream_scope %}
-          You can work only within these secondary stream scopes.
+          You can work across every stream in this secondary class.
         {% else %}
           You can enter results for the full class.
         {% endif %}
@@ -30,7 +30,7 @@
             <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{{ stream.name }}</span>
           {% endfor %}
         {% else %}
-          <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">No stream restriction</span>
+          <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">No streams required</span>
         {% endif %}
       </div>
       <div class="mt-6">

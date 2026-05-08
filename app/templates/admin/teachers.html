@@ -49,7 +49,7 @@
 
     <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
       <h2 class="font-display text-2xl font-bold text-slateink">Assign teaching scope</h2>
-      <p class="mt-2 text-sm text-slate-500">Use class-only access for Nursery/Primary and stream-specific access for Secondary where needed.</p>
+      <p class="mt-2 text-sm text-slate-500">Teachers are assigned to classes only. Secondary teachers can work across every stream in the assigned class.</p>
       <form method="POST" class="mt-6 space-y-4">
         {{ action_form.hidden_tag() }}
         <input type="hidden" name="action" value="assign_teacher" />
@@ -68,17 +68,6 @@
             <option value="">Select class</option>
             {% for class_ in classes %}
               <option value="{{ class_.id }}">{{ class_.name }} ({{ class_.level|title }})</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="mb-2 block text-sm font-medium text-slate-600">Stream restriction</label>
-          <select name="stream_id" class="w-full rounded-2xl border-slate-200 bg-slate-50">
-            <option value="">No stream restriction</option>
-            {% for class_ in classes if class_.level == 'secondary' %}
-              {% for stream in class_.streams %}
-                <option value="{{ stream.id }}">{{ class_.name }} · {{ stream.name }}</option>
-              {% endfor %}
             {% endfor %}
           </select>
         </div>
@@ -128,7 +117,7 @@
                 {% if assignments %}
                   <div class="flex flex-wrap gap-2">
                     {% for assignment in assignments %}
-                      <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">{{ assignment.class_.name }}{% if assignment.stream %} · {{ assignment.stream.name }}{% endif %}</span>
+                      <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">{{ assignment.class_.name }}</span>
                     {% endfor %}
                   </div>
                 {% else %}

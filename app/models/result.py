@@ -159,15 +159,15 @@ def validate_result(mapper, connection, target):
         if student.class_id != target.class_id:
             raise ValueError("Result class must match the student's class.")
 
-        if class_.level == Level.NURSERY:
+        if class_.level in (Level.KINDERGARTEN, Level.NURSERY):
             if target.mode != ResultMode.ASSESSMENT:
-                raise ValueError("Nursery results must use assessment mode.")
+                raise ValueError("Kindergarten and Nursery results must use assessment mode.")
             if target.stream_id is not None:
-                raise ValueError("Nursery results cannot have a stream.")
+                raise ValueError("Assessment-mode results cannot have a stream.")
             if not target.assessment_json:
                 raise ValueError("Assessment-mode results require assessment_json.")
             if not class_.assessment_schema:
-                raise ValueError("Nursery classes must define an assessment_schema.")
+                raise ValueError("Assessment-mode classes must define an assessment_schema.")
             missing_keys = set(class_.assessment_schema) - set(target.assessment_json)
             if missing_keys:
                 raise ValueError("assessment_json is missing one or more class schema keys.")
@@ -201,7 +201,7 @@ def validate_result(mapper, connection, target):
         if not target.override_reason:
             target.remark = calculate_remark(target.total_score)
 
-        if class_.level in (Level.PRIMARY, Level.NURSERY):
+        if class_.level in (Level.KINDERGARTEN, Level.NURSERY, Level.PRIMARY):
             if target.stream_id is not None:
                 raise ValueError("Only secondary results may include a stream.")
             class_subject = ClassSubject.query.filter_by(

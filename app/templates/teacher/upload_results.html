@@ -58,6 +58,12 @@
             <p class="text-xs uppercase tracking-[0.18em] {% if active_session_term.is_locked %}text-rose-600{% else %}text-emerald-600{% endif %}">Status</p>
             <p class="mt-2 font-semibold {% if active_session_term.is_locked %}text-rose-700{% else %}text-emerald-700{% endif %}">{{ "Locked" if active_session_term.is_locked else "Open" }}</p>
           </div>
+          <div class="rounded-2xl {% if teacher_upload_enabled %}bg-brand-50{% else %}bg-amber-100{% endif %} px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.18em] {% if teacher_upload_enabled %}text-brand-600{% else %}text-amber-700{% endif %}">Teacher upload</p>
+            <p class="mt-2 font-semibold {% if teacher_upload_enabled %}text-brand-700{% else %}text-amber-700{% endif %}">
+              {{ "Enabled" if teacher_upload_enabled else "Disabled by admin" }}
+            </p>
+          </div>
         </div>
       {% else %}
         <p class="mt-4 text-sm text-slate-500">No active session-term is available.</p>
@@ -66,13 +72,13 @@
   </section>
 
   {% if selected_subject and students %}
-    {% if selected_class.level == 'nursery' %}
+    {% if selected_class.level in ['kindergarten', 'nursery'] %}
       <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Assessment mode</p>
             <h2 class="mt-2 font-display text-2xl font-bold text-slateink">{{ selected_class.name }} · {{ selected_subject.name }}</h2>
-            <p class="mt-2 text-sm text-slate-500">Nursery classes use the class-defined assessment schema instead of CA and Exam scores.</p>
+            <p class="mt-2 text-sm text-slate-500">Kindergarten and Nursery classes use the class-defined assessment schema instead of CA and Exam scores.</p>
           </div>
         </div>
 
@@ -142,8 +148,8 @@
           </div>
 
           <div class="mt-6 flex flex-wrap gap-3">
-            <button type="submit" name="action" value="save_draft" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
-            <button type="submit" name="action" value="submit_results" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Submit assessments</button>
+            <button type="submit" name="action" value="save_draft" {% if not teacher_upload_enabled or not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
+            <button type="submit" name="action" value="submit_results" {% if not teacher_upload_enabled or not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Submit assessments</button>
           </div>
         </form>
       </section>
@@ -210,8 +216,8 @@
           </div>
 
           <div class="mt-6 flex flex-wrap gap-3">
-            <button type="submit" name="action" value="save_draft" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
-            <button type="submit" name="action" value="submit_results" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Submit results</button>
+            <button type="submit" name="action" value="save_draft" {% if not teacher_upload_enabled or not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
+            <button type="submit" name="action" value="submit_results" {% if not teacher_upload_enabled or not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Submit results</button>
           </div>
         </form>
       </section>
@@ -231,8 +237,8 @@
           <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
           <input type="hidden" name="subject_id" value="{{ selected_subject.id }}" />
           {{ csv_form.csv_file(class="block w-full rounded-2xl border-slate-200 bg-slate-50 text-sm") }}
-          <button type="submit" name="action" value="save_csv_draft" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex items-center justify-center rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Upload draft</button>
-          <button type="submit" name="action" value="submit_csv_results" {% if not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex items-center justify-center rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Upload and submit</button>
+          <button type="submit" name="action" value="save_csv_draft" {% if not teacher_upload_enabled or not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex items-center justify-center rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Upload draft</button>
+          <button type="submit" name="action" value="submit_csv_results" {% if not teacher_upload_enabled or not active_session_term or active_session_term.is_locked %}disabled{% endif %} class="inline-flex items-center justify-center rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Upload and submit</button>
         </form>
       </section>
     {% endif %}

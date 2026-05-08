@@ -13,19 +13,21 @@
         <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Load a class result workspace</h2>
       </div>
     </div>
-    <form method="GET" class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <form method="GET" class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
       <select name="class_id" class="rounded-2xl border-slate-200 bg-slate-50">
         <option value="">Select class</option>
         {% for class_ in classes %}
           <option value="{{ class_.id }}" {% if selected_class and selected_class.id == class_.id %}selected{% endif %}>{{ class_.name }} ({{ class_.level|title }})</option>
         {% endfor %}
       </select>
-      <select name="stream_id" class="rounded-2xl border-slate-200 bg-slate-50">
-        <option value="">All streams / none</option>
-        {% for stream in available_streams %}
-          <option value="{{ stream.id }}" {% if selected_stream and selected_stream.id == stream.id %}selected{% endif %}>{{ stream.name }}</option>
-        {% endfor %}
-      </select>
+      {% if selected_class and selected_class.level == 'secondary' %}
+        <select name="stream_id" class="rounded-2xl border-slate-200 bg-slate-50" required>
+          <option value="">Select stream</option>
+          {% for stream in available_streams %}
+            <option value="{{ stream.id }}" {% if selected_stream and selected_stream.id == stream.id %}selected{% endif %}>{{ stream.name }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
       <select name="session_id" class="rounded-2xl border-slate-200 bg-slate-50">
         <option value="">Select session</option>
         {% for session in sessions %}
@@ -38,6 +40,14 @@
           <option value="{{ term }}" {% if selected_term == term %}selected{% endif %}>{{ term|title }}</option>
         {% endfor %}
       </select>
+      {% if selected_class and (selected_class.level != 'secondary' or selected_stream) %}
+        <select name="subject_id" class="rounded-2xl border-slate-200 bg-slate-50">
+          <option value="">Select subject</option>
+          {% for subject in available_subjects %}
+            <option value="{{ subject.id }}" {% if selected_subject and selected_subject.id == subject.id %}selected{% endif %}>{{ subject.name }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
       <button class="inline-flex items-center justify-center rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Load</button>
     </form>
   </section>
@@ -49,7 +59,7 @@
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Class control</p>
             <h2 class="mt-2 font-display text-2xl font-bold text-slateink">{{ selected_class.name }} · {{ selected_session.name }} · {{ selected_term|title }} Term</h2>
-            <p class="mt-2 text-sm text-slate-500">Use class-level lock controls and keep result statuses aligned with your approval workflow.</p>
+            <p class="mt-2 text-sm text-slate-500">Use this workspace to upload, review, override, and lock results for the selected session-term.</p>
           </div>
           <div class="flex flex-wrap gap-3">
             <form method="POST">
@@ -75,32 +85,195 @@
       </article>
 
       <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
-        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Visibility rule</p>
-        <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Position display</h2>
-        {% if selected_class.level == 'nursery' %}
-          <p class="mt-3 text-sm text-slate-500">Nursery classes use assessment mode only, so numeric position does not apply here.</p>
-        {% else %}
-          <p class="mt-3 text-sm text-slate-500">
-            Students will
-            {% if selected_class.show_position %}
-              <span class="font-semibold text-emerald-700">see</span>
+        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Workspace state</p>
+        <h2 class="mt-2 font-display text-2xl font-bold text-slateink">Entry and position rules</h2>
+        <div class="mt-5 space-y-3">
+          <div class="rounded-2xl {% if selected_session_term and selected_session_term.is_locked %}bg-rose-50{% else %}bg-emerald-50{% endif %} px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.18em] {% if selected_session_term and selected_session_term.is_locked %}text-rose-600{% else %}text-emerald-600{% endif %}">Session-term status</p>
+            <p class="mt-2 font-semibold {% if selected_session_term and selected_session_term.is_locked %}text-rose-700{% else %}text-emerald-700{% endif %}">
+              {{ "Locked" if selected_session_term and selected_session_term.is_locked else "Open" }}
+            </p>
+          </div>
+          <div class="rounded-2xl bg-slate-50 px-4 py-4">
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Position display</p>
+            {% if selected_class.level in ['kindergarten', 'nursery'] %}
+              <p class="mt-2 text-sm font-medium text-slate-500">Assessment-mode classes do not use numeric positions.</p>
             {% else %}
-              <span class="font-semibold text-slate-700">not see</span>
+              <p class="mt-2 text-sm font-medium text-slate-600">
+                Students will {{ "see" if selected_class.show_position else "not see" }} position on their report card.
+              </p>
             {% endif %}
-            position on their report card for this class.
-          </p>
-          <form method="POST" class="mt-5">
+          </div>
+        </div>
+      </article>
+    </section>
+
+    {% if selected_subject and students %}
+      {% if selected_class.level in ['kindergarten', 'nursery'] %}
+        <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Admin upload</p>
+              <h2 class="mt-2 font-display text-2xl font-bold text-slateink">{{ selected_class.name }} · {{ selected_subject.name }}</h2>
+              <p class="mt-2 text-sm text-slate-500">Kindergarten and Nursery classes use the class-defined assessment schema instead of CA and Exam scores.</p>
+            </div>
+          </div>
+          <form method="POST" class="mt-6">
             {{ action_form.hidden_tag() }}
-            <input type="hidden" name="action" value="recalculate_positions" />
+            <input type="hidden" name="action" value="save_admin_results" />
+            <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
+            <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
+            <input type="hidden" name="term" value="{{ selected_term }}" />
+            <input type="hidden" name="subject_id" value="{{ selected_subject.id }}" />
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead>
+                  <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+                    <th class="pb-3 pr-4">Student</th>
+                    <th class="pb-3 pr-4">Code</th>
+                    <th class="pb-3 pr-4">Offered</th>
+                    {% for item in assessment_schema_items %}
+                      <th class="pb-3 pr-4">{{ item.label }}</th>
+                    {% endfor %}
+                    <th class="pb-3 pr-4">Remark</th>
+                    <th class="pb-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-600">
+                  {% for student in students %}
+                    {% set result = existing_results.get(student.id) %}
+                    {% set row_locked = result and result.result_status == 'locked' %}
+                    {% set assessment_values = result.assessment_json if result and result.assessment_json else {} %}
+                    <tr class="{% if row_locked %}bg-slate-50/80{% endif %}">
+                      <td class="py-4 pr-4 font-semibold text-slateink">{{ student.full_name }}</td>
+                      <td class="py-4 pr-4">{{ student.student_code }}</td>
+                      <td class="py-4 pr-4">
+                        <input type="checkbox" name="is_offered_{{ student.id }}" {% if not result or result.is_offered %}checked{% endif %} {% if row_locked or (selected_session_term and selected_session_term.is_locked) %}disabled{% endif %} class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                      </td>
+                      {% for item in assessment_schema_items %}
+                        <td class="py-4 pr-4">
+                          {% set field_name = "assessment__" ~ item.key ~ "__" ~ student.id %}
+                          {% set current_value = assessment_values.get(item.key) %}
+                          {% if item.type == 'integer' %}
+                            <input type="number" min="0" step="1" name="{{ field_name }}" value="{{ current_value if current_value is not none else '' }}" {% if row_locked or (selected_session_term and selected_session_term.is_locked) %}disabled{% endif %} class="w-28 rounded-2xl border-slate-200 bg-slate-50" />
+                          {% elif item.type == 'rating' %}
+                            <select name="{{ field_name }}" {% if row_locked or (selected_session_term and selected_session_term.is_locked) %}disabled{% endif %} class="w-40 rounded-2xl border-slate-200 bg-slate-50">
+                              <option value="">Select</option>
+                              {% for option in ['Outstanding', 'Very Good', 'Good', 'Developing', 'Needs Support'] %}
+                                <option value="{{ option }}" {% if current_value == option %}selected{% endif %}>{{ option }}</option>
+                              {% endfor %}
+                            </select>
+                          {% else %}
+                            <input type="text" name="{{ field_name }}" value="{{ current_value if current_value is not none else '' }}" {% if row_locked or (selected_session_term and selected_session_term.is_locked) %}disabled{% endif %} class="w-48 rounded-2xl border-slate-200 bg-slate-50" />
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                      <td class="py-4 pr-4">
+                        <input type="text" name="remark_{{ student.id }}" value="{{ result.remark if result and result.remark else '' }}" {% if row_locked or (selected_session_term and selected_session_term.is_locked) %}disabled{% endif %} class="w-56 rounded-2xl border-slate-200 bg-slate-50" />
+                      </td>
+                      <td class="py-4">
+                        <span class="rounded-full px-3 py-1 text-xs font-medium {% if result and result.result_status == 'locked' %}bg-rose-100 text-rose-700{% elif result and result.result_status == 'submitted' %}bg-amber-100 text-amber-700{% elif result %}bg-brand-100 text-brand-700{% else %}bg-slate-100 text-slate-500{% endif %}">
+                          {{ result.result_status|title if result else "Not started" }}
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <button type="submit" name="action" value="save_admin_results" {% if selected_session_term and selected_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
+              <button type="submit" name="action" value="submit_admin_results" {% if selected_session_term and selected_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Submit assessments</button>
+            </div>
+          </form>
+        </section>
+      {% else %}
+        <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Admin upload</p>
+              <h2 class="mt-2 font-display text-2xl font-bold text-slateink">{{ selected_class.name }}{% if selected_stream %} · {{ selected_stream.name }}{% endif %} · {{ selected_subject.name }}</h2>
+              <p class="mt-2 text-sm text-slate-500">Use this sheet to upload score-mode results directly as admin.</p>
+            </div>
+          </div>
+          <form method="POST" class="mt-6">
+            {{ action_form.hidden_tag() }}
             <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
             <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
             <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
             <input type="hidden" name="term" value="{{ selected_term }}" />
-            <button class="inline-flex rounded-2xl bg-slateink px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Recalculate positions</button>
+            <input type="hidden" name="subject_id" value="{{ selected_subject.id }}" />
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead>
+                  <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+                    <th class="pb-3 pr-4">Student</th>
+                    <th class="pb-3 pr-4">Code</th>
+                    <th class="pb-3 pr-4">Offered</th>
+                    <th class="pb-3 pr-4">CA</th>
+                    <th class="pb-3 pr-4">Exam</th>
+                    <th class="pb-3 pr-4">Total</th>
+                    <th class="pb-3 pr-4">Grade</th>
+                    <th class="pb-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-600">
+                  {% for student in students %}
+                    {% set result = existing_results.get(student.id) %}
+                    {% set row_locked = result and result.result_status == 'locked' %}
+                    <tr class="{% if row_locked %}bg-slate-50/80{% endif %}">
+                      <td class="py-4 pr-4 font-semibold text-slateink">{{ student.full_name }}</td>
+                      <td class="py-4 pr-4">{{ student.student_code }}</td>
+                      <td class="py-4 pr-4">
+                        <input type="checkbox" name="is_offered_{{ student.id }}" {% if not result or result.is_offered %}checked{% endif %} {% if row_locked or (selected_session_term and selected_session_term.is_locked) %}disabled{% endif %} class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                      </td>
+                      <td class="py-4 pr-4">
+                        <input type="number" min="0" max="40" step="0.01" name="ca_score_{{ student.id }}" value="{{ result.ca_score if result and result.ca_score is not none else '' }}" {% if row_locked or (selected_session_term and selected_session_term.is_locked) %}disabled{% endif %} class="js-ca-score w-24 rounded-2xl border-slate-200 bg-slate-50" />
+                      </td>
+                      <td class="py-4 pr-4">
+                        <input type="number" min="0" max="60" step="0.01" name="exam_score_{{ student.id }}" value="{{ result.exam_score if result and result.exam_score is not none else '' }}" {% if row_locked or (selected_session_term and selected_session_term.is_locked) %}disabled{% endif %} class="js-exam-score w-24 rounded-2xl border-slate-200 bg-slate-50" />
+                      </td>
+                      <td class="js-total-score py-4 pr-4">{{ result.total_score if result and result.total_score is not none else '' }}</td>
+                      <td class="js-grade py-4 pr-4">{{ result.grade if result and result.grade else '' }}</td>
+                      <td class="py-4">
+                        <span class="rounded-full px-3 py-1 text-xs font-medium {% if result and result.result_status == 'locked' %}bg-rose-100 text-rose-700{% elif result and result.result_status == 'submitted' %}bg-amber-100 text-amber-700{% elif result %}bg-brand-100 text-brand-700{% else %}bg-slate-100 text-slate-500{% endif %}">
+                          {{ result.result_status|title if result else "Not started" }}
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-6 flex flex-wrap gap-3">
+              <button type="submit" name="action" value="save_admin_results" {% if selected_session_term and selected_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
+              <button type="submit" name="action" value="submit_admin_results" {% if selected_session_term and selected_session_term.is_locked %}disabled{% endif %} class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Submit results</button>
+            </div>
           </form>
-        {% endif %}
-      </article>
-    </section>
+        </section>
+
+        <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Bulk upload</p>
+              <h2 class="mt-2 font-display text-2xl font-bold text-slateink">CSV upload for this subject scope</h2>
+              <p class="mt-2 text-sm text-slate-500">Required columns: <code>student_code,ca_score,exam_score,is_offered</code></p>
+            </div>
+          </div>
+          <form method="POST" enctype="multipart/form-data" class="mt-6 grid gap-4 md:grid-cols-[1fr_auto_auto]">
+            {{ csv_form.hidden_tag() }}
+            <input type="hidden" name="class_id" value="{{ selected_class.id }}" />
+            <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
+            <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
+            <input type="hidden" name="term" value="{{ selected_term }}" />
+            <input type="hidden" name="subject_id" value="{{ selected_subject.id }}" />
+            {{ csv_form.csv_file(class="block w-full rounded-2xl border-slate-200 bg-slate-50 text-sm") }}
+            <button type="submit" name="action" value="save_admin_csv" {% if selected_session_term and selected_session_term.is_locked %}disabled{% endif %} class="inline-flex items-center justify-center rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Upload draft</button>
+            <button type="submit" name="action" value="submit_admin_csv" {% if selected_session_term and selected_session_term.is_locked %}disabled{% endif %} class="inline-flex items-center justify-center rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition enabled:hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300">Upload and submit</button>
+          </form>
+        </section>
+      {% endif %}
+    {% endif %}
 
     <section class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">
       <div class="flex items-center justify-between gap-4">
@@ -110,50 +283,82 @@
         </div>
       </div>
       <div class="mt-6 space-y-4">
-        {% if selected_class.level == 'nursery' %}
-          <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">Nursery classes do not use numeric position ranking.</div>
-        {% elif position_boards %}
-          {% for board in position_boards %}
-            <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-5">
-              <div class="flex items-center justify-between gap-4">
-                <h3 class="font-display text-lg font-bold text-slateink">{{ board.label }}</h3>
-              </div>
-              {% if board.rows %}
-                <div class="mt-4 overflow-x-auto">
-                  <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead>
-                      <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
-                        <th class="pb-3 pr-4">Position</th>
-                        <th class="pb-3 pr-4">Student</th>
-                        <th class="pb-3 pr-4">Total</th>
-                        <th class="pb-3 pr-4">Taken</th>
-                        <th class="pb-3 pr-4">A+</th>
-                        <th class="pb-3 pr-4">A</th>
-                        <th class="pb-3">Average</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 text-slate-600">
-                      {% for row in board.rows %}
-                        <tr>
-                          <td class="py-4 pr-4 font-semibold text-slateink">{{ row.position }}</td>
-                          <td class="py-4 pr-4">{{ row.student.full_name }}</td>
-                          <td class="py-4 pr-4">{{ "%.2f"|format(row.total_score) }}</td>
-                          <td class="py-4 pr-4">{{ row.subjects_taken }}</td>
-                          <td class="py-4 pr-4">{{ row.a_plus_count }}</td>
-                          <td class="py-4 pr-4">{{ row.a_count }}</td>
-                          <td class="py-4">{{ "%.2f"|format(row.average_score) }}</td>
-                        </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                </div>
-              {% else %}
-                <p class="mt-4 text-sm text-slate-400">No offered score results are available in this scope.</p>
-              {% endif %}
-            </div>
-          {% endfor %}
+        {% if selected_class.level in ['kindergarten', 'nursery'] %}
+          <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">Assessment-mode classes do not use numeric position ranking.</div>
         {% else %}
-          <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">No ranking data is available for this scope yet.</div>
+          {% if subject_position_board and subject_position_board.rows %}
+            <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-5">
+              <h3 class="font-display text-lg font-bold text-slateink">{{ subject_position_board.label }}</h3>
+              <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                  <thead>
+                    <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+                      <th class="pb-3 pr-4">Position</th>
+                      <th class="pb-3 pr-4">Student</th>
+                      <th class="pb-3 pr-4">Score</th>
+                      <th class="pb-3 pr-4">A+</th>
+                      <th class="pb-3">A</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 text-slate-600">
+                    {% for row in subject_position_board.rows %}
+                      <tr>
+                        <td class="py-4 pr-4 font-semibold text-slateink">{{ row.position }}</td>
+                        <td class="py-4 pr-4">{{ row.student.full_name }}</td>
+                        <td class="py-4 pr-4">{{ "%.2f"|format(row.total_score) }}</td>
+                        <td class="py-4 pr-4">{{ row.a_plus_count }}</td>
+                        <td class="py-4">{{ row.a_count }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endif %}
+
+          {% if position_boards %}
+            {% for board in position_boards %}
+              <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-5">
+                <div class="flex items-center justify-between gap-4">
+                  <h3 class="font-display text-lg font-bold text-slateink">{{ board.label }}</h3>
+                </div>
+                {% if board.rows %}
+                  <div class="mt-4 overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                      <thead>
+                        <tr class="text-left text-xs uppercase tracking-[0.18em] text-slate-400">
+                          <th class="pb-3 pr-4">Position</th>
+                          <th class="pb-3 pr-4">Student</th>
+                          <th class="pb-3 pr-4">Total</th>
+                          <th class="pb-3 pr-4">Taken</th>
+                          <th class="pb-3 pr-4">A+</th>
+                          <th class="pb-3 pr-4">A</th>
+                          <th class="pb-3">Average</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-100 text-slate-600">
+                        {% for row in board.rows %}
+                          <tr>
+                            <td class="py-4 pr-4 font-semibold text-slateink">{{ row.position }}</td>
+                            <td class="py-4 pr-4">{{ row.student.full_name }}</td>
+                            <td class="py-4 pr-4">{{ "%.2f"|format(row.total_score) }}</td>
+                            <td class="py-4 pr-4">{{ row.subjects_taken }}</td>
+                            <td class="py-4 pr-4">{{ row.a_plus_count }}</td>
+                            <td class="py-4 pr-4">{{ row.a_count }}</td>
+                            <td class="py-4">{{ "%.2f"|format(row.average_score) }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <p class="mt-4 text-sm text-slate-400">No offered score results are available in this scope.</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">No ranking data is available for this scope yet.</div>
+          {% endif %}
         {% endif %}
       </div>
     </section>
@@ -172,7 +377,7 @@
                 <th class="pb-3 pr-4">Subject</th>
                 <th class="pb-3 pr-4">Mode</th>
                 <th class="pb-3 pr-4">Offered</th>
-                {% if selected_class.level == 'nursery' %}
+                {% if selected_class.level in ['kindergarten', 'nursery'] %}
                   {% for item in assessment_schema_items %}
                     <th class="pb-3 pr-4">{{ item.label }}</th>
                   {% endfor %}
@@ -215,15 +420,9 @@
                     <td class="py-4 pr-4">{{ result.grade if result.grade else "-" }}</td>
                   {% endif %}
                   <td class="py-4 pr-4">
-                    <span class="rounded-full px-3 py-1 text-xs font-medium
-                      {% if result.result_status == 'locked' %}
-                        bg-rose-100 text-rose-700
-                      {% elif result.result_status == 'submitted' %}
-                        bg-amber-100 text-amber-700
-                      {% else %}
-                        bg-brand-100 text-brand-700
-                      {% endif %}
-                    ">{{ result.result_status|title }}</span>
+                    <span class="rounded-full px-3 py-1 text-xs font-medium {% if result.result_status == 'locked' %}bg-rose-100 text-rose-700{% elif result.result_status == 'submitted' %}bg-amber-100 text-amber-700{% else %}bg-brand-100 text-brand-700{% endif %}">
+                      {{ result.result_status|title }}
+                    </span>
                   </td>
                   <td class="py-4">
                     <details class="group">
@@ -236,6 +435,7 @@
                         <input type="hidden" name="stream_id" value="{{ selected_stream.id if selected_stream else '' }}" />
                         <input type="hidden" name="session_id" value="{{ selected_session.id }}" />
                         <input type="hidden" name="term" value="{{ selected_term }}" />
+                        <input type="hidden" name="subject_id" value="{{ selected_subject.id if selected_subject else '' }}" />
                         <label class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
                           <input type="checkbox" name="is_offered" {% if result.is_offered %}checked{% endif %} class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
                           <span>Subject offered</span>
@@ -284,8 +484,58 @@
   {% else %}
     <section class="rounded-[2rem] border border-dashed border-slate-200 bg-white/75 p-12 text-center shadow-soft">
       <h2 class="font-display text-2xl font-bold text-slateink">Choose a class result scope</h2>
-      <p class="mt-3 text-sm leading-7 text-slate-500">Select a class, session, and term to unlock the class lock controls, review tools, and row overrides.</p>
+      <p class="mt-3 text-sm leading-7 text-slate-500">Select a class, session, and term to unlock the admin upload workspace, class lock controls, review tools, and row overrides.</p>
     </section>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+  {{ super() }}
+  {% if selected_class and selected_class.level not in ['kindergarten', 'nursery'] %}
+    <script>
+      (() => {
+        const rows = document.querySelectorAll("tbody tr");
+        const gradeScale = [
+          { minimum: 90, grade: "A+" },
+          { minimum: 80, grade: "A" },
+          { minimum: 70, grade: "B" },
+          { minimum: 60, grade: "C" },
+          { minimum: 50, grade: "D" },
+          { minimum: 40, grade: "E" },
+          { minimum: 0, grade: "F" }
+        ];
+
+        const deriveGrade = (score) => {
+          for (const item of gradeScale) {
+            if (score >= item.minimum) return item.grade;
+          }
+          return "F";
+        };
+
+        rows.forEach((row) => {
+          const caInput = row.querySelector(".js-ca-score");
+          const examInput = row.querySelector(".js-exam-score");
+          const totalCell = row.querySelector(".js-total-score");
+          const gradeCell = row.querySelector(".js-grade");
+          if (!caInput || !examInput || !totalCell || !gradeCell) return;
+
+          const update = () => {
+            const hasValues = caInput.value !== "" || examInput.value !== "";
+            if (!hasValues) {
+              totalCell.textContent = "";
+              gradeCell.textContent = "";
+              return;
+            }
+            const total = (parseFloat(caInput.value || "0") + parseFloat(examInput.value || "0"));
+            totalCell.textContent = total.toFixed(2);
+            gradeCell.textContent = deriveGrade(total);
+          };
+
+          caInput.addEventListener("input", update);
+          examInput.addEventListener("input", update);
+        });
+      })();
+    </script>
+  {% endif %}
 {% endblock %}

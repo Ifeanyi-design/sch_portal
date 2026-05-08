@@ -25,9 +25,6 @@ class Stream(db.Model):
         cascade="all, delete-orphan",
         lazy="dynamic",
     )
-    teacher_assignments = db.relationship(
-        "ClassTeacherMap", back_populates="stream", lazy="dynamic"
-    )
     results = db.relationship("Result", back_populates="stream", lazy="dynamic")
 
     __table_args__ = (

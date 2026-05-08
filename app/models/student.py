@@ -1,5 +1,7 @@
 """Student model."""
 
+from datetime import date
+
 from sqlalchemy import event
 from sqlalchemy.orm import synonym
 
@@ -18,9 +20,14 @@ class Student(db.Model):
     student_code = db.Column(db.String(20), unique=True, nullable=False, index=True)
     first_name = db.Column(db.String(80), nullable=False)
     last_name = db.Column(db.String(80), nullable=False)
+    gender = db.Column(db.String(20), nullable=False)
+    date_of_birth = db.Column(db.Date, nullable=False)
     class_id = db.Column(db.Integer, db.ForeignKey("classes.id"), nullable=False)
     stream_id = db.Column(db.Integer, db.ForeignKey("streams.id"), nullable=True)
     admission_year = db.Column(db.Integer, nullable=False)
+    parent_name = db.Column(db.String(150), nullable=True)
+    parent_phone = db.Column(db.String(30), nullable=True)
+    address = db.Column(db.String(255), nullable=True)
     level = db.Column(db.String(20), nullable=False)
     is_active = db.Column("active_status", db.Boolean, nullable=False, default=True)
 
@@ -33,7 +40,11 @@ class Student(db.Model):
 
     __table_args__ = (
         db.CheckConstraint(
-            "level IN ('nursery', 'primary', 'secondary')", name="ck_students_level"
+            "level IN ('kindergarten', 'nursery', 'primary', 'secondary')",
+            name="ck_students_level",
+        ),
+        db.CheckConstraint(
+            "gender IN ('male', 'female')", name="ck_students_gender"
         ),
     )
 
@@ -56,9 +67,12 @@ def validate_student(mapper, connection, target):
     if target.level != class_.level:
         raise ValueError("Student level must match the assigned class level.")
 
-    if class_.level in (Level.NURSERY, Level.PRIMARY):
+    if not isinstance(target.date_of_birth, date):
+        raise ValueError("Student date_of_birth must be a valid date.")
+
+    if class_.level in (Level.KINDERGARTEN, Level.NURSERY, Level.PRIMARY):
         if target.stream_id is not None:
-            raise ValueError("Nursery and Primary students cannot have a stream.")
+            raise ValueError("Only Secondary students can have a stream.")
         return
 
     if target.stream_id is None and class_.streams:

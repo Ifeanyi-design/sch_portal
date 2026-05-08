@@ -30,6 +30,22 @@
         </select>
         <button class="inline-flex rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">Activate session</button>
       </form>
+
+      <div class="mt-8 h-px bg-slate-200"></div>
+
+      <h3 class="mt-8 font-display text-xl font-bold text-slateink">Teacher upload setting</h3>
+      <p class="mt-2 text-sm text-slate-500">This controls whether teachers can upload results directly or if result entry remains admin-only.</p>
+      <div class="mt-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+        <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Current mode</p>
+        <p class="mt-2 font-semibold text-slateink">{{ "Enabled for teachers" if settings.allow_teacher_result_upload else "Admin only" }}</p>
+      </div>
+      <form method="POST" class="mt-4">
+        {{ action_form.hidden_tag() }}
+        <input type="hidden" name="action" value="toggle_teacher_result_upload" />
+        <button class="inline-flex rounded-2xl bg-slateink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700">
+          {{ "Disable teacher upload" if settings.allow_teacher_result_upload else "Enable teacher upload" }}
+        </button>
+      </form>
     </article>
 
     <article class="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-soft">

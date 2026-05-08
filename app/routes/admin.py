@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date
 from datetime import datetime, timezone
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.extensions import db
-from app.forms.teacher_forms import ActionForm
+from app.forms.teacher_forms import ActionForm, CSVUploadForm
 from app.models.class_ import Class, Level
 from app.models.class_subject import ClassSubject
 from app.models.class_teacher import ClassTeacherMap
@@ -19,10 +20,15 @@ from app.models.stream import Stream
 from app.models.stream_subject import StreamSubject
 from app.models.student import Student
 from app.models.subject import Subject
+from app.models.system_setting import SystemSetting
 from app.models.teacher import Teacher
 from app.models.user import Role, User
 from app.utils.decorators import role_required
-from app.utils.helpers import build_position_rows, generate_student_id
+from app.utils.helpers import (
+    build_position_rows,
+    build_subject_position_rows,
+    generate_student_id,
+)
 
 admin_bp = Blueprint("admin", __name__, template_folder="../templates/admin")
 
@@ -37,9 +43,20 @@ def _split_name(first_name: str, last_name: str) -> str:
     return f"{first_name.strip()} {last_name.strip()}".strip()
 
 
+def _parse_date_field(field_name: str) -> date:
+    """Return an ISO date field or raise a clear validation error."""
+    raw_value = request.form.get(field_name, "").strip()
+    if not raw_value:
+        raise ValueError(f"{field_name.replace('_', ' ').title()} is required.")
+    try:
+        return date.fromisoformat(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{field_name.replace('_', ' ').title()} must be a valid date.") from exc
+
+
 def _parse_assessment_schema(level: str, raw_keys: str) -> dict | None:
     """Return a normalized assessment schema payload for nursery classes."""
-    if level != Level.NURSERY:
+    if level not in (Level.KINDERGARTEN, Level.NURSERY):
         return None
 
     keys = [key.strip() for key in raw_keys.split(",") if key.strip()]
@@ -84,6 +101,120 @@ def _stream_options(class_id: int | None = None) -> list[Stream]:
     return query.all()
 
 
+def _result_scope_subjects(class_: Class | None, stream: Stream | None) -> list[Subject]:
+    """Return subjects valid for the selected result-entry scope."""
+    if class_ is None:
+        return []
+    if class_.level == Level.SECONDARY:
+        if stream is None:
+            return []
+        return (
+            Subject.query.join(StreamSubject)
+            .filter(StreamSubject.stream_id == stream.id, Subject.is_active.is_(True))
+            .order_by(Subject.name.asc())
+            .all()
+        )
+    return (
+        Subject.query.join(ClassSubject)
+        .filter(ClassSubject.class_id == class_.id, Subject.is_active.is_(True))
+        .order_by(Subject.name.asc())
+        .all()
+    )
+
+
+def _result_scope_students(class_: Class | None, stream: Stream | None) -> list[Student]:
+    """Return active students in the selected result scope."""
+    if class_ is None:
+        return []
+    query = Student.query.filter_by(class_id=class_.id, is_active=True)
+    if class_.level == Level.SECONDARY:
+        if stream is None:
+            return []
+        query = query.filter_by(stream_id=stream.id)
+    return query.order_by(Student.last_name.asc(), Student.first_name.asc()).all()
+
+
+def _result_sheet_lookup(
+    class_: Class | None,
+    stream: Stream | None,
+    subject: Subject | None,
+    session_id: int | None,
+    term: str | None,
+) -> dict[int, Result]:
+    """Return existing results keyed by student for one admin entry sheet."""
+    if not all([class_, subject, session_id, term]):
+        return {}
+    query = Result.query.filter_by(
+        class_id=class_.id,
+        subject_id=subject.id,
+        session_id=session_id,
+        term=term,
+    )
+    if class_.level == Level.SECONDARY:
+        query = query.filter_by(stream_id=stream.id if stream else None)
+    else:
+        query = query.filter(Result.stream_id.is_(None))
+    return {result.student_id: result for result in query.all()}
+
+
+def _selected_subject(class_: Class | None, stream: Stream | None, subject_id: int | None) -> Subject | None:
+    """Return the selected subject only when it belongs to the chosen scope."""
+    if not subject_id:
+        return None
+    return next(
+        (subject for subject in _result_scope_subjects(class_, stream) if subject.id == subject_id),
+        None,
+    )
+
+
+def _selected_session_term(session_id: int | None, term: str | None) -> SessionTerm | None:
+    """Return the matching session-term row for uploads and locks."""
+    if not session_id or not term:
+        return None
+    return SessionTerm.query.filter_by(session_id=session_id, term=term).first()
+
+
+def _parse_bool(value: str | None) -> bool:
+    """Parse common boolean-like strings."""
+    return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _coerce_score(raw_value: str | None, field_name: str, row_label: str) -> float:
+    """Convert a score field to float with a clear validation error."""
+    value = (raw_value or "").strip()
+    if value == "":
+        raise ValueError(f"{row_label}: {field_name} is required when the subject is offered.")
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise ValueError(f"{row_label}: {field_name} must be a number.") from exc
+
+
+def _coerce_assessment_value(raw_value: str | None, field_type: str, field_label: str, row_label: str, *, required: bool):
+    """Normalize one assessment field based on its schema type."""
+    value = (raw_value or "").strip()
+    if value == "":
+        if required:
+            raise ValueError(f"{row_label}: {field_label} is required when the subject is offered.")
+        return None
+    if field_type == "integer":
+        try:
+            return int(value)
+        except ValueError as exc:
+            raise ValueError(f"{row_label}: {field_label} must be a whole number.") from exc
+    return value
+
+
+def _ensure_admin_upload_window(session_term: SessionTerm | None, class_: Class | None, session_id: int | None) -> None:
+    """Ensure the selected upload scope is writable."""
+    if session_term is None or class_ is None or session_id is None:
+        raise ValueError("Class, session, and term are required before uploading results.")
+    if class_.session_id != session_id:
+        raise ValueError("The selected class does not belong to the chosen session.")
+    if session_term.is_locked:
+        raise ValueError("Results are locked for the selected session-term.")
+
+
 def _teacher_options() -> list[Teacher]:
     """Return active teacher profiles."""
     return Teacher.query.order_by(Teacher.first_name.asc(), Teacher.last_name.asc()).all()
@@ -117,7 +248,11 @@ def _stream_subjects_map() -> dict[int, list[StreamSubject]]:
 
 def _assessment_schema_items(class_: Class | None) -> list[dict]:
     """Return nursery assessment schema entries in display order."""
-    if class_ is None or class_.level != Level.NURSERY or not class_.assessment_schema:
+    if (
+        class_ is None
+        or class_.level not in (Level.KINDERGARTEN, Level.NURSERY)
+        or not class_.assessment_schema
+    ):
         return []
 
     return [
@@ -132,6 +267,11 @@ def _teacher_assignments_map() -> dict[int, list[ClassTeacherMap]]:
     for assignment in ClassTeacherMap.query.order_by(ClassTeacherMap.class_id.asc()).all():
         grouped.setdefault(assignment.teacher_id, []).append(assignment)
     return grouped
+
+
+def _system_settings() -> SystemSetting:
+    """Return the single mutable settings row."""
+    return SystemSetting.get_current()
 
 
 def _student_results_query(class_id: int | None, stream_id: int | None, session_id: int | None, term: str | None):
@@ -156,7 +296,7 @@ def _position_boards(selected_class: Class | None, session_id: int | None, term:
     """Compute ranking boards for the selected class and session-term."""
     if selected_class is None or session_id is None or term is None:
         return []
-    if selected_class.level == Level.NURSERY:
+    if selected_class.level in (Level.KINDERGARTEN, Level.NURSERY):
         return []
 
     boards = []
@@ -186,17 +326,17 @@ def _position_boards(selected_class: Class | None, session_id: int | None, term:
         return boards
 
     streams = selected_class.streams
+    student_map = {}
+    for result in base_results:
+        student_map.setdefault(result.student, []).append(result)
+    boards.append(
+        {
+            "label": f"{selected_class.name} Overall Class Ranking",
+            "scope": "class",
+            "rows": build_position_rows(student_map),
+        }
+    )
     if not streams:
-        student_map = {}
-        for result in base_results:
-            student_map.setdefault(result.student, []).append(result)
-        boards.append(
-            {
-                "label": f"{selected_class.name} Ranking",
-                "scope": "class",
-                "rows": build_position_rows(student_map),
-            }
-        )
         return boards
 
     for stream in streams:
@@ -214,6 +354,321 @@ def _position_boards(selected_class: Class | None, session_id: int | None, term:
             }
         )
     return boards
+
+
+def _subject_position_board(
+    selected_class: Class | None,
+    selected_stream: Stream | None,
+    selected_subject: Subject | None,
+    session_id: int | None,
+    term: str | None,
+) -> dict | None:
+    """Compute one subject ranking board for the currently selected subject scope."""
+    if not all([selected_class, selected_subject, session_id, term]):
+        return None
+    if selected_class.level in (Level.KINDERGARTEN, Level.NURSERY):
+        return None
+
+    query = Result.query.join(Student).filter(
+        Result.class_id == selected_class.id,
+        Result.subject_id == selected_subject.id,
+        Result.session_id == session_id,
+        Result.term == term,
+        Result.mode == ResultMode.SCORE,
+        Result.is_offered.is_(True),
+    )
+    if selected_class.level == Level.SECONDARY and selected_stream is not None:
+        query = query.filter(Result.stream_id == selected_stream.id)
+
+    rows = build_subject_position_rows(query.all())
+    if selected_class.level == Level.SECONDARY and selected_stream is not None:
+        label = f"{selected_subject.name} - {selected_stream.name} Subject Ranking"
+    else:
+        label = f"{selected_subject.name} Subject Ranking"
+    return {"label": label, "rows": rows}
+
+
+def _manual_entry_fields_present(student_id: int) -> bool:
+    """Return whether a posted manual-entry row contains editable fields."""
+    keys = {
+        f"is_offered_{student_id}",
+        f"ca_score_{student_id}",
+        f"exam_score_{student_id}",
+        f"remark_{student_id}",
+    }
+    if any(key in request.form for key in keys):
+        return True
+    return any(
+        key.startswith("assessment__") and key.endswith(f"__{student_id}")
+        for key in request.form.keys()
+    )
+
+
+def _upsert_admin_score_result(
+    *,
+    existing: Result | None,
+    student: Student,
+    subject: Subject,
+    class_: Class,
+    stream: Stream | None,
+    session_id: int,
+    term: str,
+    is_offered: bool,
+    ca_score: float | None,
+    exam_score: float | None,
+    target_status: str,
+) -> None:
+    """Create or update one score-mode result from the admin workspace."""
+    if existing is not None and existing.result_status == ResultStatus.LOCKED:
+        raise ValueError(f"{student.full_name}: locked results must be unlocked before upload.")
+
+    result = existing or Result(
+        student_id=student.id,
+        subject_id=subject.id,
+        class_id=class_.id,
+        stream_id=stream.id if stream else None,
+        session_id=session_id,
+        term=term,
+        mode=ResultMode.SCORE,
+        uploaded_by_user_id=current_user.id,
+    )
+    if existing is None:
+        db.session.add(result)
+
+    result.mode = ResultMode.SCORE
+    result.is_offered = is_offered
+    result.ca_score = ca_score
+    result.exam_score = exam_score
+    result.result_status = target_status
+    result.uploaded_by_user_id = current_user.id
+
+
+def _upsert_admin_assessment_result(
+    *,
+    existing: Result | None,
+    student: Student,
+    subject: Subject,
+    class_: Class,
+    session_id: int,
+    term: str,
+    is_offered: bool,
+    assessment_json: dict,
+    remark: str | None,
+    target_status: str,
+) -> None:
+    """Create or update one assessment-mode result from the admin workspace."""
+    if existing is not None and existing.result_status == ResultStatus.LOCKED:
+        raise ValueError(f"{student.full_name}: locked assessments must be unlocked before upload.")
+
+    result = existing or Result(
+        student_id=student.id,
+        subject_id=subject.id,
+        class_id=class_.id,
+        stream_id=None,
+        session_id=session_id,
+        term=term,
+        mode=ResultMode.ASSESSMENT,
+        uploaded_by_user_id=current_user.id,
+    )
+    if existing is None:
+        db.session.add(result)
+
+    result.mode = ResultMode.ASSESSMENT
+    result.is_offered = is_offered
+    result.assessment_json = assessment_json
+    result.remark = remark
+    result.result_status = target_status
+    result.uploaded_by_user_id = current_user.id
+
+
+def _save_admin_manual_results(
+    selected_class: Class | None,
+    selected_stream: Stream | None,
+    selected_subject: Subject | None,
+    selected_session: Session | None,
+    selected_term: str | None,
+) -> None:
+    """Persist one admin-managed result sheet."""
+    if not all([selected_class, selected_subject, selected_session, selected_term]):
+        raise ValueError("Select class, session, term, and subject before saving results.")
+    if selected_class.level == Level.SECONDARY and selected_stream is None:
+        raise ValueError("Select a stream before saving secondary results.")
+
+    session_term = _selected_session_term(selected_session.id, selected_term)
+    _ensure_admin_upload_window(session_term, selected_class, selected_session.id)
+    target_status = (
+        ResultStatus.SUBMITTED
+        if request.form.get("action") == "submit_admin_results"
+        else ResultStatus.DRAFT
+    )
+    students = _result_scope_students(selected_class, selected_stream)
+    existing_results = _result_sheet_lookup(
+        selected_class,
+        selected_stream,
+        selected_subject,
+        selected_session.id,
+        selected_term,
+    )
+    if not students:
+        raise ValueError("There are no students in the selected scope.")
+
+    schema_items = _assessment_schema_items(selected_class)
+    changed_rows = 0
+    for student in students:
+        existing = existing_results.get(student.id)
+        if existing is not None and existing.result_status == ResultStatus.LOCKED:
+            if _manual_entry_fields_present(student.id):
+                raise ValueError(f"{student.full_name}: locked rows must be unlocked before upload.")
+            continue
+
+        is_offered = request.form.get(f"is_offered_{student.id}") == "on"
+        if selected_class.level in (Level.KINDERGARTEN, Level.NURSERY):
+            assessment_json = {}
+            for item in schema_items:
+                field_name = f"assessment__{item['key']}__{student.id}"
+                assessment_json[item["key"]] = _coerce_assessment_value(
+                    request.form.get(field_name),
+                    item["type"],
+                    item["label"],
+                    student.full_name,
+                    required=is_offered,
+                )
+            remark = request.form.get(f"remark_{student.id}", "").strip() or None
+            _upsert_admin_assessment_result(
+                existing=existing,
+                student=student,
+                subject=selected_subject,
+                class_=selected_class,
+                session_id=selected_session.id,
+                term=selected_term,
+                is_offered=is_offered,
+                assessment_json=assessment_json,
+                remark=remark,
+                target_status=target_status,
+            )
+        else:
+            ca_score = None
+            exam_score = None
+            if is_offered:
+                ca_score = _coerce_score(
+                    request.form.get(f"ca_score_{student.id}"),
+                    "CA score",
+                    student.full_name,
+                )
+                exam_score = _coerce_score(
+                    request.form.get(f"exam_score_{student.id}"),
+                    "Exam score",
+                    student.full_name,
+                )
+            _upsert_admin_score_result(
+                existing=existing,
+                student=student,
+                subject=selected_subject,
+                class_=selected_class,
+                stream=selected_stream,
+                session_id=selected_session.id,
+                term=selected_term,
+                is_offered=is_offered,
+                ca_score=ca_score,
+                exam_score=exam_score,
+                target_status=target_status,
+            )
+        changed_rows += 1
+
+    if changed_rows == 0:
+        raise ValueError("No editable results were found in the selected scope.")
+
+
+def _save_admin_csv_results(
+    selected_class: Class | None,
+    selected_stream: Stream | None,
+    selected_subject: Subject | None,
+    selected_session: Session | None,
+    selected_term: str | None,
+    csv_form: CSVUploadForm,
+) -> None:
+    """Persist bulk CSV results from the admin workspace."""
+    import csv
+    import io
+
+    if not all([selected_class, selected_subject, selected_session, selected_term]):
+        raise ValueError("Select class, session, term, and subject before uploading a CSV.")
+    if selected_class.level in (Level.KINDERGARTEN, Level.NURSERY):
+        raise ValueError("CSV upload is not available for assessment-mode classes.")
+    if selected_class.level == Level.SECONDARY and selected_stream is None:
+        raise ValueError("Select a stream before uploading secondary results.")
+
+    session_term = _selected_session_term(selected_session.id, selected_term)
+    _ensure_admin_upload_window(session_term, selected_class, selected_session.id)
+    target_status = (
+        ResultStatus.SUBMITTED
+        if request.form.get("action") == "submit_admin_csv"
+        else ResultStatus.DRAFT
+    )
+    students = _result_scope_students(selected_class, selected_stream)
+    if not students:
+        raise ValueError("There are no students in the selected scope.")
+
+    student_by_code = {student.student_code: student for student in students}
+    existing_results = _result_sheet_lookup(
+        selected_class,
+        selected_stream,
+        selected_subject,
+        selected_session.id,
+        selected_term,
+    )
+
+    try:
+        content = csv_form.csv_file.data.stream.read().decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError("The uploaded file must be a UTF-8 encoded CSV.") from exc
+
+    reader = csv.DictReader(io.StringIO(content))
+    required_columns = {"student_code", "ca_score", "exam_score", "is_offered"}
+    if reader.fieldnames is None or not required_columns.issubset(set(reader.fieldnames)):
+        raise ValueError(
+            "CSV headers must include: student_code, ca_score, exam_score, is_offered."
+        )
+
+    rows = list(reader)
+    if not rows:
+        raise ValueError("The uploaded CSV file is empty.")
+
+    for row_number, row in enumerate(rows, start=2):
+        student_code = (row.get("student_code") or "").strip()
+        if not student_code:
+            raise ValueError(f"Row {row_number}: student_code is required.")
+        student = student_by_code.get(student_code)
+        if student is None:
+            raise ValueError(
+                f"Row {row_number}: {student_code} is not a student in the selected class or stream."
+            )
+
+        existing = existing_results.get(student.id)
+        if existing is not None and existing.result_status == ResultStatus.LOCKED:
+            raise ValueError(f"{student.full_name}: locked rows must be unlocked before upload.")
+
+        is_offered = _parse_bool(row.get("is_offered"))
+        ca_score = None
+        exam_score = None
+        if is_offered:
+            row_label = f"Row {row_number} ({student_code})"
+            ca_score = _coerce_score(row.get("ca_score"), "CA score", row_label)
+            exam_score = _coerce_score(row.get("exam_score"), "Exam score", row_label)
+
+        _upsert_admin_score_result(
+            existing=existing,
+            student=student,
+            subject=selected_subject,
+            class_=selected_class,
+            stream=selected_stream,
+            session_id=selected_session.id,
+            term=selected_term,
+            is_offered=is_offered,
+            ca_score=ca_score,
+            exam_score=exam_score,
+            target_status=target_status,
+        )
 
 
 def _create_teacher() -> None:
@@ -300,25 +755,16 @@ def _toggle_teacher_active() -> None:
 
 
 def _assign_teacher() -> None:
-    """Assign a teacher to a class or class-stream scope."""
+    """Assign a teacher to a class."""
     teacher_id = request.form.get("teacher_id", type=int)
     class_id = request.form.get("class_id", type=int)
-    stream_id = request.form.get("stream_id", type=int)
 
     teacher = Teacher.query.get_or_404(teacher_id)
     class_ = Class.query.get_or_404(class_id)
-    stream = Stream.query.get(stream_id) if stream_id else None
-
-    if class_.level != Level.SECONDARY:
-        stream = None
-        stream_id = None
-    elif stream_id and (stream is None or stream.class_id != class_.id):
-        raise ValueError("The selected stream does not belong to the chosen class.")
 
     existing = ClassTeacherMap.query.filter_by(
         teacher_id=teacher.id,
         class_id=class_.id,
-        stream_id=stream_id,
     ).first()
     if existing:
         raise ValueError("That teacher assignment already exists.")
@@ -327,7 +773,7 @@ def _assign_teacher() -> None:
         ClassTeacherMap(
             teacher_id=teacher.id,
             class_id=class_.id,
-            stream_id=stream_id,
+            stream_id=None,
         )
     )
 
@@ -338,15 +784,24 @@ def _create_student() -> None:
     last_name = request.form.get("last_name", "").strip()
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "").strip()
+    gender = request.form.get("gender", "").strip().lower()
+    date_of_birth = _parse_date_field("date_of_birth")
     admission_year = request.form.get("admission_year", type=int)
     class_id = request.form.get("class_id", type=int)
     stream_id = request.form.get("stream_id", type=int)
+    parent_name = request.form.get("parent_name", "").strip() or None
+    parent_phone = request.form.get("parent_phone", "").strip() or None
+    address = request.form.get("address", "").strip() or None
 
     class_ = Class.query.get_or_404(class_id)
-    if not all([first_name, last_name, email, password, admission_year]):
-        raise ValueError("Student first name, last name, email, password, class, and admission year are required.")
+    if not all([first_name, last_name, email, password, admission_year, gender]):
+        raise ValueError(
+            "Student first name, last name, email, password, gender, class, and admission year are required."
+        )
     if User.query.filter_by(email=email).first():
         raise ValueError("A user with that email already exists.")
+    if gender not in {"male", "female"}:
+        raise ValueError("Student gender must be either male or female.")
 
     if class_.level != Level.SECONDARY:
         stream_id = None
@@ -374,9 +829,14 @@ def _create_student() -> None:
             student_code=student_code,
             first_name=first_name,
             last_name=last_name,
+            gender=gender,
+            date_of_birth=date_of_birth,
             class_id=class_.id,
             stream_id=stream_id,
             admission_year=admission_year,
+            parent_name=parent_name,
+            parent_phone=parent_phone,
+            address=address,
             level=class_.level,
             is_active=True,
         )
@@ -389,12 +849,21 @@ def _update_student() -> None:
     first_name = request.form.get("first_name", "").strip()
     last_name = request.form.get("last_name", "").strip()
     email = request.form.get("email", "").strip().lower()
+    gender = request.form.get("gender", "").strip().lower()
+    date_of_birth = _parse_date_field("date_of_birth")
     admission_year = request.form.get("admission_year", type=int)
     class_id = request.form.get("class_id", type=int)
     stream_id = request.form.get("stream_id", type=int)
+    parent_name = request.form.get("parent_name", "").strip() or None
+    parent_phone = request.form.get("parent_phone", "").strip() or None
+    address = request.form.get("address", "").strip() or None
 
-    if not all([first_name, last_name, email, admission_year, class_id]):
-        raise ValueError("Student first name, last name, email, class, and admission year are required.")
+    if not all([first_name, last_name, email, gender, admission_year, class_id]):
+        raise ValueError(
+            "Student first name, last name, email, gender, class, and admission year are required."
+        )
+    if gender not in {"male", "female"}:
+        raise ValueError("Student gender must be either male or female.")
 
     duplicate_email = User.query.filter(User.email == email, User.id != student.user_id).first()
     if duplicate_email:
@@ -412,9 +881,14 @@ def _update_student() -> None:
 
     student.first_name = first_name
     student.last_name = last_name
+    student.gender = gender
+    student.date_of_birth = date_of_birth
     student.admission_year = admission_year
     student.class_id = class_.id
     student.stream_id = stream_id
+    student.parent_name = parent_name
+    student.parent_phone = parent_phone
+    student.address = address
     student.level = class_.level
     student.user.email = email
     student.user.full_name = _split_name(first_name, last_name)
@@ -718,6 +1192,12 @@ def _toggle_session_active() -> None:
     session.is_active = True
 
 
+def _toggle_teacher_result_upload() -> None:
+    """Flip the global teacher upload permission."""
+    settings = _system_settings()
+    settings.allow_teacher_result_upload = not settings.allow_teacher_result_upload
+
+
 def _toggle_class_lock() -> None:
     """Lock or unlock all results for one class and session-term."""
     class_id = request.form.get("class_id", type=int)
@@ -765,7 +1245,11 @@ def _override_result() -> None:
 
     if result.mode == ResultMode.ASSESSMENT:
         class_ = result.class_
-        if class_ is None or class_.level != Level.NURSERY or not class_.assessment_schema:
+        if (
+            class_ is None
+            or class_.level not in (Level.KINDERGARTEN, Level.NURSERY)
+            or not class_.assessment_schema
+        ):
             raise ValueError("Nursery assessment overrides require a valid class schema.")
 
         assessment_json = {}
@@ -993,6 +1477,9 @@ def sessions():
             elif action == "toggle_global_lock":
                 _toggle_global_lock()
                 message = "Session-term lock state updated."
+            elif action == "toggle_teacher_result_upload":
+                _toggle_teacher_result_upload()
+                message = "Teacher result upload setting updated."
             else:
                 raise ValueError("Unsupported session action.")
             db.session.commit()
@@ -1007,6 +1494,7 @@ def sessions():
         "admin/sessions.html",
         action_form=ActionForm(),
         sessions=sessions,
+        settings=_system_settings(),
         session_terms_by_session={
             session.id: session.session_terms.order_by(SessionTerm.term.asc()).all()
             for session in sessions
@@ -1019,8 +1507,18 @@ def sessions():
 @role_required("admin")
 def results():
     """View, override, lock, and rank results across the system."""
+    csv_form = CSVUploadForm()
     if request.method == "POST":
         action = request.form.get("action", "")
+        selected_class = Class.query.get(request.form.get("class_id", type=int))
+        selected_stream = Stream.query.get(request.form.get("stream_id", type=int)) if request.form.get("stream_id", type=int) else None
+        selected_session = Session.query.get(request.form.get("session_id", type=int)) if request.form.get("session_id", type=int) else None
+        selected_term = request.form.get("term") or None
+        selected_subject = _selected_subject(
+            selected_class,
+            selected_stream,
+            request.form.get("subject_id", type=int),
+        )
         try:
             if action == "toggle_class_lock":
                 _toggle_class_lock()
@@ -1028,6 +1526,27 @@ def results():
             elif action == "override_result":
                 _override_result()
                 message = "Result override saved."
+            elif action in {"save_admin_results", "submit_admin_results"}:
+                _save_admin_manual_results(
+                    selected_class,
+                    selected_stream,
+                    selected_subject,
+                    selected_session,
+                    selected_term,
+                )
+                message = "Admin result sheet saved."
+            elif action in {"save_admin_csv", "submit_admin_csv"}:
+                if not csv_form.validate_on_submit():
+                    raise ValueError("A CSV file is required for bulk upload.")
+                _save_admin_csv_results(
+                    selected_class,
+                    selected_stream,
+                    selected_subject,
+                    selected_session,
+                    selected_term,
+                    csv_form,
+                )
+                message = "Admin CSV upload saved."
             elif action == "recalculate_positions":
                 message = "Positions recalculated from the current class result totals."
             else:
@@ -1044,17 +1563,37 @@ def results():
                 stream_id=request.form.get("stream_id", type=int),
                 session_id=request.form.get("session_id", type=int),
                 term=request.form.get("term"),
+                subject_id=request.form.get("subject_id", type=int),
             )
         )
 
     selected_class_id = request.args.get("class_id", type=int)
     selected_stream_id = request.args.get("stream_id", type=int)
     selected_session_id = request.args.get("session_id", type=int)
+    selected_subject_id = request.args.get("subject_id", type=int)
     selected_class = Class.query.get(selected_class_id) if selected_class_id else None
     selected_stream = Stream.query.get(selected_stream_id) if selected_stream_id else None
     selected_session = Session.query.get(selected_session_id) if selected_session_id else None
     selected_term = request.args.get("term", type=str) or None
-    available_streams = _stream_options(selected_class.id) if selected_class else []
+    available_streams = (
+        _stream_options(selected_class.id)
+        if selected_class and selected_class.level == Level.SECONDARY
+        else []
+    )
+    available_subjects = _result_scope_subjects(selected_class, selected_stream)
+    selected_subject = _selected_subject(selected_class, selected_stream, selected_subject_id)
+    scoped_students = _result_scope_students(selected_class, selected_stream)
+    existing_results = _result_sheet_lookup(
+        selected_class,
+        selected_stream,
+        selected_subject,
+        selected_session.id if selected_session else None,
+        selected_term,
+    )
+    selected_session_term = _selected_session_term(
+        selected_session.id if selected_session else None,
+        selected_term,
+    )
 
     results_query = _student_results_query(
         selected_class.id if selected_class else None,
@@ -1069,10 +1608,18 @@ def results():
         selected_session.id if selected_session else None,
         selected_term,
     )
+    subject_position_board = _subject_position_board(
+        selected_class,
+        selected_stream,
+        selected_subject,
+        selected_session.id if selected_session else None,
+        selected_term,
+    )
 
     return render_template(
         "admin/results.html",
         action_form=ActionForm(),
+        csv_form=csv_form,
         classes=_class_options(),
         sessions=_session_options(),
         terms=Term.ALL,
@@ -1080,8 +1627,14 @@ def results():
         selected_stream=selected_stream,
         selected_session=selected_session,
         selected_term=selected_term,
+        selected_subject=selected_subject,
+        selected_session_term=selected_session_term,
         available_streams=available_streams,
+        available_subjects=available_subjects,
+        students=scoped_students,
+        existing_results=existing_results,
         results=result_rows,
         assessment_schema_items=assessment_schema_items,
         position_boards=position_boards,
+        subject_position_board=subject_position_board,
     )

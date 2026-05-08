@@ -81,23 +81,8 @@ def summarize_score_results(results) -> dict:
     }
 
 
-def build_position_rows(student_results_map: dict) -> list[dict]:
-    """Build ranked rows using spec tie-breaking rules."""
-    ranking_rows = []
-    for student, results in student_results_map.items():
-        summary = summarize_score_results(results)
-        ranking_rows.append(
-            {
-                "student": student,
-                "results": results,
-                "total_score": summary["total_score"],
-                "subjects_taken": summary["subjects_taken"],
-                "average_score": summary["average_score"],
-                "a_plus_count": summary["grade_counts"].get("A+", 0),
-                "a_count": summary["grade_counts"].get("A", 0),
-            }
-        )
-
+def rank_position_rows(ranking_rows: list[dict]) -> list[dict]:
+    """Apply the shared spec tie-breaking rules to prebuilt ranking rows."""
     ranking_rows.sort(
         key=lambda item: (
             -item["total_score"],
@@ -126,3 +111,55 @@ def build_position_rows(student_results_map: dict) -> list[dict]:
             previous_key = key
 
     return ranking_rows
+
+
+def build_position_rows(student_results_map: dict) -> list[dict]:
+    """Build ranked rows using spec tie-breaking rules."""
+    ranking_rows = []
+    for student, results in student_results_map.items():
+        summary = summarize_score_results(results)
+        ranking_rows.append(
+            {
+                "student": student,
+                "results": results,
+                "total_score": summary["total_score"],
+                "subjects_taken": summary["subjects_taken"],
+                "average_score": summary["average_score"],
+                "a_plus_count": summary["grade_counts"].get("A+", 0),
+                "a_count": summary["grade_counts"].get("A", 0),
+            }
+        )
+
+    return rank_position_rows(ranking_rows)
+
+
+def build_subject_position_rows(results) -> list[dict]:
+    """Rank subject results for one subject scope."""
+    ranking_rows = []
+    for result in results:
+        if not getattr(result, "is_offered", False) or getattr(result, "total_score", None) is None:
+            continue
+        student = getattr(result, "student", None)
+        if student is None:
+            continue
+        grade = getattr(result, "grade", None)
+        ranking_rows.append(
+            {
+                "student": student,
+                "result": result,
+                "total_score": round(float(result.total_score), 2),
+                "subjects_taken": 1,
+                "average_score": round(float(result.total_score), 2),
+                "a_plus_count": 1 if grade == "A+" else 0,
+                "a_count": 1 if grade == "A" else 0,
+            }
+        )
+
+    return rank_position_rows(ranking_rows)
+
+
+def calculate_percentage(total_score: float, subjects_taken: int) -> float:
+    """Return the V2.2 percentage value for score-mode summaries."""
+    if subjects_taken <= 0:
+        return 0.0
+    return round((total_score / (subjects_taken * 100)) * 100, 2)

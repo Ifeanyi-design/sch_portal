@@ -6,11 +6,12 @@ from app.extensions import db
 class Level:
     """Supported school levels."""
 
+    KINDERGARTEN = "kindergarten"
     NURSERY = "nursery"
     PRIMARY = "primary"
     SECONDARY = "secondary"
 
-    ALL = (NURSERY, PRIMARY, SECONDARY)
+    ALL = (KINDERGARTEN, NURSERY, PRIMARY, SECONDARY)
 
 
 class Class(db.Model):
@@ -49,7 +50,8 @@ class Class(db.Model):
     __table_args__ = (
         db.UniqueConstraint("session_id", "name", "arm", name="uq_classes_session_name_arm"),
         db.CheckConstraint(
-            "level IN ('nursery', 'primary', 'secondary')", name="ck_classes_level"
+            "level IN ('kindergarten', 'nursery', 'primary', 'secondary')",
+            name="ck_classes_level",
         ),
     )
 

@@ -8,6 +8,7 @@ from app.models.stream import Stream  # noqa: F401
 from app.models.subject import Subject  # noqa: F401
 from app.models.class_subject import ClassSubject  # noqa: F401
 from app.models.stream_subject import StreamSubject  # noqa: F401
+from app.models.system_setting import SystemSetting  # noqa: F401
 from app.models.student import Student  # noqa: F401
 from app.models.teacher import Teacher  # noqa: F401
 from app.models.class_teacher import ClassTeacherMap  # noqa: F401

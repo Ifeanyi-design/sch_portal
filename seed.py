@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from app import create_app
 from app.extensions import db
 from app.models.class_ import Class, Level
@@ -10,6 +12,7 @@ from app.models.class_teacher import ClassTeacherMap
 from app.models.result import Result, ResultMode, ResultStatus
 from app.models.session_ import Session
 from app.models.session_term import SessionTerm, Term
+from app.models.system_setting import SystemSetting
 from app.models.stream import Stream
 from app.models.stream_subject import StreamSubject
 from app.models.student import Student
@@ -139,6 +142,10 @@ LAST_NAMES = [
     "Lawal", "Ibrahim", "Nwachukwu", "Ogundele", "Edet", "Okechukwu", "Folarin", "Akinsanya",
 ]
 
+PARENT_LAST_NAMES = [
+    "Nnaji", "Adebayo", "Okafor", "Bello", "Adeyemi", "Balogun", "Musa", "Alabi"
+]
+
 
 def create_user(username: str, full_name: str, email: str, role: str, password: str) -> User:
     """Create one auth user with a hashed password."""
@@ -202,11 +209,16 @@ def seed_sessions() -> tuple[Session, dict[str, SessionTerm]]:
     return session, session_terms
 
 
+def seed_settings() -> None:
+    """Create the single global settings row."""
+    db.session.add(SystemSetting(id=1, allow_teacher_result_upload=False))
+
+
 def seed_classes(session: Session) -> dict[str, Class]:
     """Create KG, Nursery, Primary, JSS, and SSS classes."""
     class_specs = [
-        ("KG 1", Level.NURSERY),
-        ("KG 2", Level.NURSERY),
+        ("KG 1", Level.KINDERGARTEN),
+        ("KG 2", Level.KINDERGARTEN),
         ("Nursery 1", Level.NURSERY),
         ("Nursery 2", Level.NURSERY),
         ("Primary 1", Level.PRIMARY),
@@ -232,7 +244,9 @@ def seed_classes(session: Session) -> dict[str, Class]:
             arm=None,
             show_position=(level != Level.NURSERY),
             is_active=True,
-            assessment_schema=ASSESSMENT_SCHEMA if level == Level.NURSERY else None,
+            assessment_schema=ASSESSMENT_SCHEMA
+            if level in (Level.KINDERGARTEN, Level.NURSERY)
+            else None,
         )
         db.session.add(class_)
         classes[name] = class_
@@ -359,36 +373,29 @@ def seed_teachers(classes: dict[str, Class], streams: dict[str, Stream]) -> dict
         teachers[username] = teacher
 
     assignments = [
-        ("grace.adeyemi", "Nursery 1", None),
-        ("grace.adeyemi", "Primary 1", None),
-        ("yetunde.balogun", "KG 1", None),
-        ("yetunde.balogun", "KG 2", None),
-        ("yetunde.balogun", "Nursery 2", None),
-        ("chinedu.obi", "Primary 2", None),
-        ("halima.bello", "Primary 3", None),
-        ("tunde.alabi", "Primary 4", None),
-        ("esther.uko", "Primary 5", None),
-        ("taiwo.shittu", "Primary 6", None),
-        ("ibrahim.musa", "JSS 1", None),
-        ("funke.adeola", "JSS 2", None),
-        ("chinenye.eze", "JSS 3", None),
-        ("samuel.okoro", "SSS 1", "Science"),
-        ("patrick.james", "SSS 1", "Commercial"),
-        ("miriam.odu", "SSS 1", "Arts"),
-        ("amina.sule", "SSS 2", "Science"),
-        ("bola.adesina", "SSS 2", "Commercial"),
-        ("lilian.okafor", "SSS 2", "Arts"),
-        ("isaac.edet", "SSS 3", "Science"),
-        ("kemi.folarin", "SSS 3", "Commercial"),
-        ("ugochi.madu", "SSS 3", "Arts"),
+        ("grace.adeyemi", "Nursery 1"),
+        ("grace.adeyemi", "Primary 1"),
+        ("yetunde.balogun", "KG 1"),
+        ("yetunde.balogun", "KG 2"),
+        ("yetunde.balogun", "Nursery 2"),
+        ("chinedu.obi", "Primary 2"),
+        ("halima.bello", "Primary 3"),
+        ("tunde.alabi", "Primary 4"),
+        ("esther.uko", "Primary 5"),
+        ("taiwo.shittu", "Primary 6"),
+        ("ibrahim.musa", "JSS 1"),
+        ("funke.adeola", "JSS 2"),
+        ("chinenye.eze", "JSS 3"),
+        ("samuel.okoro", "SSS 1"),
+        ("amina.sule", "SSS 2"),
+        ("isaac.edet", "SSS 3"),
     ]
 
-    for username, class_name, stream_name in assignments:
+    for username, class_name in assignments:
         db.session.add(
             ClassTeacherMap(
                 class_id=classes[class_name].id,
                 teacher_id=teachers[username].id,
-                stream_id=streams[f"{class_name}:{stream_name}"].id if stream_name else None,
             )
         )
 
@@ -429,12 +436,12 @@ def seed_students(classes: dict[str, Class], streams: dict[str, Stream]) -> list
     remaining_counts = {(class_name, stream_name): count for class_name, stream_name, count in student_specs}
 
     fixed_students = [
-        ("STU-2025-0001", "Ifeoma", "Nnaji", "Nursery 1", None),
-        ("STU-2025-0002", "Daniel", "Adebayo", "Primary 1", None),
-        ("STU-2025-0003", "Amaka", "Okafor", "SSS 1", "Science"),
+        ("STU-2025-0001", "Ifeoma", "Nnaji", "female", date(2021, 2, 14), "Nursery 1", None),
+        ("STU-2025-0002", "Daniel", "Adebayo", "male", date(2018, 6, 3), "Primary 1", None),
+        ("STU-2025-0003", "Amaka", "Okafor", "female", date(2010, 9, 21), "SSS 1", "Science"),
     ]
 
-    for student_code, first_name, last_name, class_name, stream_name in fixed_students:
+    for student_code, first_name, last_name, gender, dob, class_name, stream_name in fixed_students:
         user = create_user(
             username=student_code,
             full_name=f"{first_name} {last_name}",
@@ -449,9 +456,14 @@ def seed_students(classes: dict[str, Class], streams: dict[str, Stream]) -> list
             student_code=student_code,
             first_name=first_name,
             last_name=last_name,
+            gender=gender,
+            date_of_birth=dob,
             class_id=class_.id,
             stream_id=stream.id if stream else None,
             admission_year=2025,
+            parent_name=f"Mr/Mrs {PARENT_LAST_NAMES[len(seeded_students) % len(PARENT_LAST_NAMES)]}",
+            parent_phone=f"0804{len(seeded_students) + 1000000:07d}",
+            address=f"{len(seeded_students) + 12} Learning Estate, Ilorin",
             level=class_.level,
             is_active=True,
         )
@@ -472,6 +484,19 @@ def seed_students(classes: dict[str, Class], streams: dict[str, Stream]) -> list
         for _ in range(remaining_counts[(class_name, stream_name)]):
             first_name = FIRST_NAMES[generated_name_index % len(FIRST_NAMES)]
             last_name = LAST_NAMES[(generated_name_index * 3) % len(LAST_NAMES)]
+            gender = "female" if generated_name_index % 2 == 0 else "male"
+            base_year = (
+                2022
+                if class_name.startswith("KG")
+                else 2021
+                if class_name.startswith("Nursery")
+                else 2017
+                if class_name.startswith("Primary")
+                else 2013
+                if class_name.startswith("JSS")
+                else 2010
+            )
+            dob = date(base_year, ((generated_name_index % 12) + 1), ((generated_name_index % 27) + 1))
             generated_name_index += 1
             student_code = f"STU-2025-{code_counter:04d}"
             user = create_user(
@@ -489,9 +514,14 @@ def seed_students(classes: dict[str, Class], streams: dict[str, Stream]) -> list
                 student_code=student_code,
                 first_name=first_name,
                 last_name=last_name,
+                gender=gender,
+                date_of_birth=dob,
                 class_id=class_.id,
                 stream_id=stream.id if stream else None,
                 admission_year=2025,
+                parent_name=f"Mr/Mrs {PARENT_LAST_NAMES[generated_name_index % len(PARENT_LAST_NAMES)]}",
+                parent_phone=f"0805{code_counter:07d}"[-11:],
+                address=f"{20 + code_counter} Scholar Avenue, Ilorin",
                 level=class_.level,
                 is_active=True,
             )
@@ -543,14 +573,14 @@ def assigned_teacher_for_student(class_name: str, stream_name: str | None, teach
         ("JSS 2", None): "funke.adeola",
         ("JSS 3", None): "chinenye.eze",
         ("SSS 1", "Science"): "samuel.okoro",
-        ("SSS 1", "Commercial"): "patrick.james",
-        ("SSS 1", "Arts"): "miriam.odu",
+        ("SSS 1", "Commercial"): "samuel.okoro",
+        ("SSS 1", "Arts"): "samuel.okoro",
         ("SSS 2", "Science"): "amina.sule",
-        ("SSS 2", "Commercial"): "bola.adesina",
-        ("SSS 2", "Arts"): "lilian.okafor",
+        ("SSS 2", "Commercial"): "amina.sule",
+        ("SSS 2", "Arts"): "amina.sule",
         ("SSS 3", "Science"): "isaac.edet",
-        ("SSS 3", "Commercial"): "kemi.folarin",
-        ("SSS 3", "Arts"): "ugochi.madu",
+        ("SSS 3", "Commercial"): "isaac.edet",
+        ("SSS 3", "Arts"): "isaac.edet",
     }
     return teachers[teacher_key_map[(class_name, stream_name)]]
 
@@ -563,7 +593,13 @@ def seed_results(
     subjects: dict[str, Subject],
     teachers: dict[str, Teacher],
 ) -> None:
-    """Create first-term demo report data for all seeded students."""
+    """Create demo report data across all three terms for all seeded students."""
+    term_offsets = {
+        Term.FIRST: 0,
+        Term.SECOND: 2,
+        Term.THIRD: 4,
+    }
+
     for student_index, entry in enumerate(students, start=1):
         student = entry["student"]
         class_name = entry["class_name"]
@@ -573,47 +609,53 @@ def seed_results(
         teacher = assigned_teacher_for_student(class_name, stream_name, teachers)
         subject_entries = subject_names_for_student(class_name, stream_name)
 
-        for subject_index, (subject_name, is_compulsory) in enumerate(subject_entries, start=1):
-            subject = subjects[subject_name]
-            result = Result(
-                student_id=student.id,
-                subject_id=subject.id,
-                class_id=class_.id,
-                stream_id=stream.id if stream else None,
-                term=Term.FIRST,
-                session_id=session.id,
-                created_by=teacher.id,
-                uploaded_by_user_id=teacher.user_id,
-                result_status=ResultStatus.DRAFT,
-                is_offered=True,
-            )
+        for term in Term.ALL:
+            offset = term_offsets[term]
+            for subject_index, (subject_name, is_compulsory) in enumerate(subject_entries, start=1):
+                subject = subjects[subject_name]
+                result = Result(
+                    student_id=student.id,
+                    subject_id=subject.id,
+                    class_id=class_.id,
+                    stream_id=stream.id if stream else None,
+                    term=term,
+                    session_id=session.id,
+                    created_by=teacher.id,
+                    uploaded_by_user_id=teacher.user_id,
+                    result_status=ResultStatus.DRAFT,
+                    is_offered=True,
+                )
 
-            if class_.level == Level.NURSERY:
-                result.mode = ResultMode.ASSESSMENT
-                result.assessment_json = build_assessment_payload(student_index, subject_index)
-                result.remark = [
-                    "Keeps improving with gentle guidance.",
-                    "Shows strong interest in classroom routines.",
-                    "Works well with peers during activities.",
-                    "Needs regular encouragement to stay engaged.",
-                    "Progress is steady and promising.",
-                ][(student_index + subject_index) % 5]
-            else:
-                result.mode = ResultMode.SCORE
-                is_optional_subject = not is_compulsory
-                offered = True
-                if is_optional_subject:
-                    offered = (student_index + subject_index) % 2 == 0
-                result.is_offered = offered
-                if offered:
-                    ca_score, exam_score = build_score_components(student_index, subject_index)
-                    result.ca_score = ca_score
-                    result.exam_score = exam_score
+                if class_.level in (Level.KINDERGARTEN, Level.NURSERY):
+                    result.mode = ResultMode.ASSESSMENT
+                    result.assessment_json = build_assessment_payload(
+                        student_index + offset, subject_index
+                    )
+                    result.remark = [
+                        "Keeps improving with gentle guidance.",
+                        "Shows strong interest in classroom routines.",
+                        "Works well with peers during activities.",
+                        "Needs regular encouragement to stay engaged.",
+                        "Progress is steady and promising.",
+                    ][(student_index + subject_index + offset) % 5]
                 else:
-                    result.ca_score = None
-                    result.exam_score = None
+                    result.mode = ResultMode.SCORE
+                    is_optional_subject = not is_compulsory
+                    offered = True
+                    if is_optional_subject:
+                        offered = (student_index + subject_index) % 2 == 0
+                    result.is_offered = offered
+                    if offered:
+                        ca_score, exam_score = build_score_components(
+                            student_index + offset, subject_index
+                        )
+                        result.ca_score = ca_score
+                        result.exam_score = exam_score
+                    else:
+                        result.ca_score = None
+                        result.exam_score = None
 
-            db.session.add(result)
+                db.session.add(result)
 
     db.session.flush()
 
@@ -638,6 +680,7 @@ def main() -> None:
         db.create_all()
 
         seed_admin()
+        seed_settings()
         session, _ = seed_sessions()
         classes = seed_classes(session)
         streams = seed_streams(classes)

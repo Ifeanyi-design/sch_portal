@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+from datetime import date
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -19,6 +20,7 @@ from app.models.stream import Stream
 from app.models.stream_subject import StreamSubject
 from app.models.student import Student
 from app.models.subject import Subject
+from app.models.system_setting import SystemSetting
 from app.models.teacher import Teacher
 from app.utils.decorators import role_required
 from app.utils.helpers import calculate_grade
@@ -61,7 +63,7 @@ def _teacher_assignments_for_class(teacher: Teacher, class_id: int) -> list[Clas
     """Return all assignment rows for a teacher within one class."""
     return (
         ClassTeacherMap.query.filter_by(teacher_id=teacher.id, class_id=class_id)
-        .order_by(ClassTeacherMap.stream_id.asc())
+        .order_by(ClassTeacherMap.class_id.asc())
         .all()
     )
 
@@ -82,24 +84,11 @@ def _get_accessible_class(teacher: Teacher, class_id: int | None) -> Class | Non
 
 
 def _accessible_streams(teacher: Teacher, class_: Class | None) -> list[Stream]:
-    """Return the streams the teacher can access within a secondary class."""
+    """Return all active streams within an assigned secondary class."""
     if class_ is None or class_.level != Level.SECONDARY:
         return []
-
-    assignments = _teacher_assignments_for_class(teacher, class_.id)
-    if not assignments:
-        return []
-
-    if any(assignment.stream_id is None for assignment in assignments):
-        return (
-            Stream.query.filter_by(class_id=class_.id, is_active=True)
-            .order_by(Stream.name.asc())
-            .all()
-        )
-
-    stream_ids = [assignment.stream_id for assignment in assignments if assignment.stream_id]
     return (
-        Stream.query.filter(Stream.id.in_(stream_ids), Stream.is_active.is_(True))
+        Stream.query.filter_by(class_id=class_.id, is_active=True)
         .order_by(Stream.name.asc())
         .all()
     )
@@ -152,7 +141,11 @@ def _subjects_for_scope(class_: Class | None, stream: Stream | None) -> list[Sub
 
 def _assessment_schema_items(class_: Class | None) -> list[dict]:
     """Return assessment schema entries in template-friendly form."""
-    if class_ is None or class_.level != Level.NURSERY or not class_.assessment_schema:
+    if (
+        class_ is None
+        or class_.level not in (Level.KINDERGARTEN, Level.NURSERY)
+        or not class_.assessment_schema
+    ):
         return []
 
     return [
@@ -272,6 +265,11 @@ def _ensure_editable_session(session_term: SessionTerm | None, class_: Class | N
         raise ValueError("The selected class does not belong to the active result-entry session.")
     if session_term.is_locked:
         raise ValueError("Results are locked for the active session-term.")
+
+
+def _teacher_upload_enabled() -> bool:
+    """Return whether teachers are allowed to upload results globally."""
+    return SystemSetting.get_current().allow_teacher_result_upload
 
 
 def _upsert_score_result(
@@ -463,8 +461,12 @@ def upload_results():
     action_form = ActionForm()
     csv_form = CSVUploadForm()
     active_session_term = _active_session_term()
+    teacher_upload_enabled = _teacher_upload_enabled()
 
     if request.method == "POST":
+        if not teacher_upload_enabled:
+            flash("Teacher result upload is currently disabled by the admin.", "danger")
+            return redirect(url_for("teacher.upload_results"))
         class_id = request.form.get("class_id", type=int)
         stream_id = request.form.get("stream_id", type=int)
         subject_id = request.form.get("subject_id", type=int)
@@ -532,6 +534,7 @@ def upload_results():
     return render_template(
         "teacher/upload_results.html",
         teacher=teacher,
+        teacher_upload_enabled=teacher_upload_enabled,
         assigned_classes=assigned_classes,
         active_session_term=active_session_term,
         selected_class=selected_class,
@@ -582,7 +585,7 @@ def _save_manual_results(
     """Persist one scoped result sheet from the teacher entry table."""
     if not all([selected_class, selected_subject]):
         raise ValueError("Select a class and subject before saving results.")
-    if selected_class.level == Level.NURSERY:
+    if selected_class.level in (Level.KINDERGARTEN, Level.NURSERY):
         _save_manual_assessments(
             teacher,
             selected_class,
@@ -723,7 +726,7 @@ def _save_csv_results(
     """Persist bulk results from a teacher-uploaded CSV file."""
     if not all([selected_class, selected_subject]):
         raise ValueError("Select a class and subject before uploading a CSV.")
-    if selected_class.level == Level.NURSERY:
+    if selected_class.level in (Level.KINDERGARTEN, Level.NURSERY):
         raise ValueError("CSV upload is not available for nursery assessment mode.")
     if selected_class.level == Level.SECONDARY and selected_stream is None:
         raise ValueError("Select a stream before uploading secondary results.")

@@ -15,6 +15,7 @@
         <input name="name" class="w-full rounded-2xl border-slate-200 bg-slate-50" placeholder="Class name" required />
         <select name="level" class="w-full rounded-2xl border-slate-200 bg-slate-50" required>
           <option value="">Select level</option>
+          <option value="kindergarten">Kindergarten</option>
           <option value="nursery">Nursery</option>
           <option value="primary">Primary</option>
           <option value="secondary">Secondary</option>
@@ -165,6 +166,7 @@
               <input type="hidden" name="class_id" value="{{ class_.id }}" />
               <input name="name" value="{{ class_.name }}" class="rounded-2xl border-slate-200 bg-slate-50" required />
               <select name="level" class="rounded-2xl border-slate-200 bg-slate-50" required>
+                <option value="kindergarten" {% if class_.level == 'kindergarten' %}selected{% endif %}>Kindergarten</option>
                 <option value="nursery" {% if class_.level == 'nursery' %}selected{% endif %}>Nursery</option>
                 <option value="primary" {% if class_.level == 'primary' %}selected{% endif %}>Primary</option>
                 <option value="secondary" {% if class_.level == 'secondary' %}selected{% endif %}>Secondary</option>
